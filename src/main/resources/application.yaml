@@ -1,0 +1,17 @@
+server:
+  port: 8003
+spring:
+  application:
+    name: open-treasury-x
+  datasource:
+    url: jdbc:mysql://localhost:3306/treasury
+    username:
+    password:
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
