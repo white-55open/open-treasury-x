@@ -1,6 +1,6 @@
 package io.github.open55.otx.account.service;
 
-import io.github.open55.otx.account.entity.Account;
+import io.github.open55.otx.account.entity.AccountEntity;
 
 import java.math.BigDecimal;
 
@@ -12,5 +12,5 @@ public interface AccountService {
 
     void freezeBalance(Long uid, BigDecimal amount);
 
-    Account getByUid(Long uid);
+    AccountEntity getByUid(Long uid);
 }

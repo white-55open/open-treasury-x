@@ -1,4 +1,4 @@
-package io.github.open55.otx.common.unclassification;
+package io.github.open55.otx.infrastructure.id;
 
 import com.baomidou.mybatisplus.core.incrementer.IdentifierGenerator;
 

@@ -1,14 +1,15 @@
 package io.github.open55.otx.account.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import io.github.open55.otx.account.entity.Account;
+import io.github.open55.otx.account.entity.AccountEntity;
 import io.github.open55.otx.account.mapper.AccountMapper;
 import io.github.open55.otx.account.service.AccountService;
+import io.github.open55.otx.common.exception.BizErrorEnum;
+import io.github.open55.otx.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -18,76 +19,68 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public Long createAccount(Long uid) {
-        Account exist = accountMapper.selectOne(new QueryWrapper<Account>()
+        AccountEntity exist = accountMapper.selectOne(new QueryWrapper<AccountEntity>()
                 .eq("uid", uid));
         if (exist != null) {
             return exist.getId();
         }
 
-        Account account = new Account();
-        account.setUid(uid);
-        account.setAvailableBalance(BigDecimal.ZERO);
-        account.setFrozenBalance(BigDecimal.ZERO);
-//        account.setVersion(0L);
-        account.setCreateTime(LocalDateTime.now());
-        account.setUpdateTime(LocalDateTime.now());
+        AccountEntity accountEntity = new AccountEntity();
+        accountEntity.setUid(uid);
+        accountEntity.setAvailableBalance(BigDecimal.ZERO);
+        accountEntity.setFrozenBalance(BigDecimal.ZERO);
 
-        accountMapper.insert(account);
+        accountMapper.insert(accountEntity);
 
-        return account.getId();
+        return accountEntity.getId();
     }
 
     @Override
     public void increaseBalance(Long uid, BigDecimal amount) {
 
-        Account account = getOrThrow(uid);
-
-        account.setAvailableBalance(
-                account.getAvailableBalance().add(amount)
+        AccountEntity accountEntity = getOrThrow(uid);
+        accountEntity.setAvailableBalance(
+                accountEntity.getAvailableBalance().add(amount)
         );
 
-        account.setUpdateTime(LocalDateTime.now());
-
-        accountMapper.updateById(account);
+        accountMapper.updateById(accountEntity);
     }
 
     @Override
     public void freezeBalance(Long uid, BigDecimal amount) {
 
-        Account account = getOrThrow(uid);
+        AccountEntity accountEntity = getOrThrow(uid);
 
         // 校验余额
-        if (account.getAvailableBalance().compareTo(amount) < 0) {
+        if (accountEntity.getAvailableBalance().compareTo(amount) < 0) {
             throw new RuntimeException("余额不足");
         }
 
-        account.setAvailableBalance(
-                account.getAvailableBalance().subtract(amount)
+        accountEntity.setAvailableBalance(
+                accountEntity.getAvailableBalance().subtract(amount)
         );
 
-        account.setFrozenBalance(
-                account.getFrozenBalance().add(amount)
+        accountEntity.setFrozenBalance(
+                accountEntity.getFrozenBalance().add(amount)
         );
 
-        account.setUpdateTime(LocalDateTime.now());
-
-        accountMapper.updateById(account);
+        accountMapper.updateById(accountEntity);
     }
 
     @Override
-    public Account getByUid(Long uid) {
+    public AccountEntity getByUid(Long uid) {
         return getOrThrow(uid);
     }
 
-    private Account getOrThrow(Long uid) {
-        Account account = accountMapper.selectOne(
-                new QueryWrapper<Account>().eq("uid", uid)
+    private AccountEntity getOrThrow(Long uid) {
+        AccountEntity accountEntity = accountMapper.selectOne(
+                new QueryWrapper<AccountEntity>().eq("uid", uid)
         );
 
-        if (account == null) {
-            throw new RuntimeException("账户不存在");
+        if (accountEntity == null) {
+            throw BizException.get(BizErrorEnum.ACCOUNT_NOT_EXIST);
         }
 
-        return account;
+        return accountEntity;
     }
 }
