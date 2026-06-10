@@ -11,6 +11,7 @@
     <groupId>io.github.open55</groupId>
     <artifactId>open-treasury-x</artifactId>
     <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
     <name/>
     <description/>
     <url/>
@@ -20,6 +21,14 @@
     <developers>
         <developer/>
     </developers>
+    <modules>
+        <module>otx-common</module>
+        <module>otx-domain</module>
+        <module>otx-infrastructure</module>
+        <module>otx-interface</module>
+        <module>otx-application</module>
+        <module>otx-starter</module>
+    </modules>
     <scm>
         <connection/>
         <developerConnection/>
@@ -35,16 +44,16 @@
         <dependencies>
             <!--region fix CVE -->
             <!-- fix web3j CVE-2026-0636 -->
-<!--            <dependency>-->
-<!--                <groupId>org.bouncycastle</groupId>-->
-<!--                <artifactId>bcprov-jdk18on</artifactId>-->
-<!--                <version>${bouncycastle.version}</version>-->
-<!--            </dependency>-->
-<!--            <dependency>-->
-<!--                <groupId>org.bouncycastle</groupId>-->
-<!--                <artifactId>bcpkix-jdk18on</artifactId>-->
-<!--                <version>${bouncycastle.version}</version>-->
-<!--            </dependency>-->
+            <!--            <dependency>-->
+            <!--                <groupId>org.bouncycastle</groupId>-->
+            <!--                <artifactId>bcprov-jdk18on</artifactId>-->
+            <!--                <version>${bouncycastle.version}</version>-->
+            <!--            </dependency>-->
+            <!--            <dependency>-->
+            <!--                <groupId>org.bouncycastle</groupId>-->
+            <!--                <artifactId>bcpkix-jdk18on</artifactId>-->
+            <!--                <version>${bouncycastle.version}</version>-->
+            <!--            </dependency>-->
             <!-- fix web3j CVE-2026-1002 -->
             <dependency>
                 <groupId>io.vertx</groupId>
@@ -67,93 +76,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-    <dependencies>
-<!--        <dependency>-->
-<!--            <groupId>org.web3j</groupId>-->
-<!--            <artifactId>core</artifactId>-->
-<!--            <version>5.0.3</version>-->
-<!--        </dependency>-->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-log4j2</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <version>5.8.40</version>
-        </dependency>
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
-            <version>3.5.15</version>
-        </dependency>
-        <dependency>
-            <groupId>org.mapstruct</groupId>
-            <artifactId>mapstruct</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.mapstruct</groupId>
-            <artifactId>mapstruct-processor</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-logging</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>4.0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.0.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <scope>runtime</scope>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter-test</artifactId>
-            <version>4.0.1</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
 
     <build>
         <plugins>
