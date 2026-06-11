@@ -1,8 +1,9 @@
 package io.github.open55.otx.account;
 
-import io.github.open55.otx.account.entity.AccountEntity;
-import io.github.open55.otx.account.service.AccountService;
-import io.github.open55.otx.common.response.Result;
+
+import io.github.open55.otx.account.dto.response.GetAccountResponse;
+import io.github.open55.otx.account.service.AccountAppService;
+import io.github.open55.otx.response.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,27 +14,27 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class AccountController {
 
-    private final AccountService accountService;
+    private final AccountAppService accountAppService;
 
     @PostMapping("/create/{uid}")
     public Result<String> create(@PathVariable Long uid) {
-        return Result.success(String.valueOf(accountService.createAccount(uid)));
+        return Result.success(String.valueOf(accountAppService.createAccount(uid)));
     }
 
     @PostMapping("/increase")
     public Result<Void> increase(@RequestParam Long uid, @RequestParam BigDecimal amount) {
-        accountService.increaseBalance(uid, amount);
+        accountAppService.increaseBalance(uid, amount);
         return Result.success();
     }
 
     @PostMapping("/freeze")
     public Result<Void> freeze(@RequestParam Long uid, @RequestParam BigDecimal amount) {
-        accountService.freezeBalance(uid, amount);
+        accountAppService.freezeBalance(uid, amount);
         return Result.success();
     }
 
     @GetMapping("/{uid}")
-    public Result<AccountEntity> get(@PathVariable Long uid) {
-        return Result.success(accountService.getByUid(uid));
+    public Result<GetAccountResponse> get(@PathVariable Long uid) {
+        return Result.success(accountAppService.getByUid(uid));
     }
 }

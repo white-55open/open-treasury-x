@@ -3,9 +3,9 @@ package io.github.open55.otx;
 import cn.hutool.core.exceptions.ExceptionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.open55.otx.account.entity.AccountDO;
-import io.github.open55.otx.mapper.AccountMapper;
-import io.github.open55.otx.account.service.AccountService;
+import io.github.open55.otx.account.service.AccountAppService;
 import io.github.open55.otx.exception.OptimisticLockException;
+import io.github.open55.otx.mapper.AccountMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +23,7 @@ public class OptimisticLockTest {
     private AccountMapper accountMapper;
 
     @Autowired
-    private AccountService accountService;
+    private AccountAppService accountAppService;
 
 
     @Test
@@ -31,7 +31,7 @@ public class OptimisticLockTest {
         Long testUid = 999999L;
         AtomicReference<Throwable> threadBError = new AtomicReference<>();
         CountDownLatch startUpdateSignal = new CountDownLatch(1);
-        accountService.createAccount(testUid);
+        accountAppService.createAccount(testUid);
 
         CompletableFuture<Void> futureA = CompletableFuture.runAsync(() -> {
             try {

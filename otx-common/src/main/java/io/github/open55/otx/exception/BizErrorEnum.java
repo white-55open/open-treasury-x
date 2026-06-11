@@ -9,6 +9,8 @@ public enum BizErrorEnum {
 
     CONCURRENCY_ERROR("CONCURRENCY_ERROR", "The current data has been modified by someone else. Please try again."),
 
+    INSUFFICIENT_BALANCE("INSUFFICIENT_BALANCE", "Insufficient account balance."),
+
     ACCOUNT_NOT_EXIST("ACCOUNT_NOT_EXIST", "account not exist.");
 
     private final String code;

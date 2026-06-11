@@ -1,6 +1,6 @@
 package io.github.open55.otx.config;
 
-import io.github.open55.otx.infrastructure.trace.TraceIdInterceptor;
+import io.github.open55.otx.component.trace.TraceIdInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;

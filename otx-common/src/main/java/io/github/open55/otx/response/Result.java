@@ -1,7 +1,7 @@
 package io.github.open55.otx.response;
 
+import cn.hutool.http.HttpStatus;
 import lombok.Data;
-import org.springframework.http.HttpStatus;
 
 @Data
 public class Result<T> {
@@ -24,7 +24,7 @@ public class Result<T> {
     }
 
     public static <T> Result<T> success(T data) {
-        return new Result<T>(String.valueOf(HttpStatus.OK.value()), "success", data);
+        return new Result<T>(String.valueOf(HttpStatus.HTTP_OK), "success", data);
     }
 
     public static <T> Result<T> fail(String errorCode, String message, T data) {

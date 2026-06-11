@@ -36,34 +36,84 @@
         <url/>
     </scm>
     <properties>
+        <otx.version>0.0.1-SNAPSHOT</otx.version>
         <java.version>21</java.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <springdoc.version>3.0.2</springdoc.version>
+        <spring-retry.version>2.0.12</spring-retry.version>
+        <spring-aop.version>3.5.14</spring-aop.version>
+        <mybatis-plus.version>3.5.15</mybatis-plus.version>
+        <web3j.version>5.0.3</web3j.version>
+        <spring-boot-test.version>4.0.1</spring-boot-test.version>
+        <mybatis.version>4.0.1</mybatis.version>
+        <vertx.version>5.0.7</vertx.version>
+        <hutool.version>5.8.40</hutool.version>
     </properties>
     <dependencyManagement>
         <dependencies>
             <!--region fix CVE -->
             <!-- fix web3j CVE-2026-0636 -->
-            <!--            <dependency>-->
-            <!--                <groupId>org.bouncycastle</groupId>-->
-            <!--                <artifactId>bcprov-jdk18on</artifactId>-->
-            <!--                <version>${bouncycastle.version}</version>-->
-            <!--            </dependency>-->
-            <!--            <dependency>-->
-            <!--                <groupId>org.bouncycastle</groupId>-->
-            <!--                <artifactId>bcpkix-jdk18on</artifactId>-->
-            <!--                <version>${bouncycastle.version}</version>-->
-            <!--            </dependency>-->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcpkix-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
             <!-- fix web3j CVE-2026-1002 -->
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-core</artifactId>
-                <version>5.0.7</version>
+                <version>${vertx.version}</version>
             </dependency>
             <!--endregion fix CVE -->
 
 
             <!-- others -->
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mybatis.spring.boot</groupId>
+                <artifactId>mybatis-spring-boot-starter</artifactId>
+                <version>${mybatis.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mybatis.spring.boot</groupId>
+                <artifactId>mybatis-spring-boot-starter-test</artifactId>
+                <version>${spring-boot-test.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.web3j</groupId>
+                <artifactId>core</artifactId>
+                <version>${web3j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-aop</artifactId>
+                <version>${spring-aop.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.retry</groupId>
+                <artifactId>spring-retry</artifactId>
+                <version>${spring-retry.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct</artifactId>
@@ -73,6 +123,46 @@
                 <groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct-processor</artifactId>
                 <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter</artifactId>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-logging</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>io.github.open55</groupId>
+                <artifactId>otx-starter</artifactId>
+                <version>${otx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.open55</groupId>
+                <artifactId>otx-infrastructure</artifactId>
+                <version>${otx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.open55</groupId>
+                <artifactId>otx-interface</artifactId>
+                <version>${otx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.open55</groupId>
+                <artifactId>otx-application</artifactId>
+                <version>${otx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.open55</groupId>
+                <artifactId>otx-domain</artifactId>
+                <version>${otx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.open55</groupId>
+                <artifactId>otx-common</artifactId>
+                <version>${otx.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

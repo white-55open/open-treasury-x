@@ -1,7 +1,9 @@
-package io.github.open55.otx.exception;
+package io.github.open55.otx.component.exception;
 
 import cn.hutool.core.exceptions.ExceptionUtil;
 import io.github.open55.otx.constant.WarningWordConstant;
+import io.github.open55.otx.exception.BizException;
+import io.github.open55.otx.exception.OptimisticLockException;
 import io.github.open55.otx.response.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.exceptions.PersistenceException;
