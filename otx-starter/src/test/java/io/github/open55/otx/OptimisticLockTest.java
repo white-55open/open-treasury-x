@@ -2,10 +2,10 @@ package io.github.open55.otx;
 
 import cn.hutool.core.exceptions.ExceptionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.open55.otx.account.entity.AccountDO;
 import io.github.open55.otx.account.service.AccountAppService;
 import io.github.open55.otx.exception.OptimisticLockException;
 import io.github.open55.otx.mapper.AccountMapper;
+import io.github.open55.otx.po.AccountPO;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +35,7 @@ public class OptimisticLockTest {
 
         CompletableFuture<Void> futureA = CompletableFuture.runAsync(() -> {
             try {
-                AccountDO accountA = accountMapper.selectOne(new LambdaQueryWrapper<AccountDO>().eq(AccountDO::getUid, testUid));
+                AccountPO accountA = accountMapper.selectOne(new LambdaQueryWrapper<AccountPO>().eq(AccountPO::getUid, testUid));
                 startUpdateSignal.await();
                 accountA.setAvailableBalance(accountA.getAvailableBalance().subtract(new BigDecimal("100")));
                 accountMapper.updateById(accountA);
@@ -46,7 +46,7 @@ public class OptimisticLockTest {
 
         CompletableFuture<Void> futureB = CompletableFuture.runAsync(() -> {
             try {
-                AccountDO accountB = accountMapper.selectOne(new LambdaQueryWrapper<AccountDO>().eq(AccountDO::getUid, testUid));
+                AccountPO accountB = accountMapper.selectOne(new LambdaQueryWrapper<AccountPO>().eq(AccountPO::getUid, testUid));
                 startUpdateSignal.await();
                 Thread.sleep(50);
                 accountB.setAvailableBalance(accountB.getAvailableBalance().subtract(new BigDecimal("50")));

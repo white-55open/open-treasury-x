@@ -5,12 +5,12 @@ import io.github.open55.otx.converter.AccountConverter;
 import io.github.open55.otx.entity.AccountEntity;
 import io.github.open55.otx.mapper.AccountMapper;
 import io.github.open55.otx.po.AccountPO;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class AccountRepoImpl implements AccountRepo {
-    @Autowired
+    @Resource
     private AccountMapper accountMapper;
 
     @Override

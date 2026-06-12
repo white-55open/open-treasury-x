@@ -8,7 +8,7 @@
         <Property name="LOG_PATTERN"
                   value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread][%X{traceId}] %-5level %logger{36} - %msg%n"/>
         <!-- 日志文件存储路径 -->
-        <Property name="LOG_FILE_PATH" value="./logs"/>
+        <Property name="LOG_FILE_PATH" value="/applogs/otx"/>
     </Properties>
 
     <Appenders>

@@ -2,10 +2,11 @@ package io.github.open55.otx.converter;
 
 import io.github.open55.otx.entity.AccountEntity;
 import io.github.open55.otx.po.AccountPO;
+import org.mapstruct.Builder;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(builder = @Builder(disableBuilder = true))
 public interface AccountConverter {
     AccountConverter INSTANCE = Mappers.getMapper(AccountConverter.class);
 

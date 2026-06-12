@@ -2,9 +2,7 @@ package io.github.open55.otx.entity;
 
 import io.github.open55.otx.exception.BizErrorEnum;
 import io.github.open55.otx.exception.BizException;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
 import java.math.BigDecimal;
 
@@ -14,6 +12,8 @@ import java.math.BigDecimal;
 @Builder
 @EqualsAndHashCode(callSuper = true)
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class AccountEntity extends BaseEntity {
     private Long uid;
 
