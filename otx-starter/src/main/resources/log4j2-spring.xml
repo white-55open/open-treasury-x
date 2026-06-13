@@ -1,39 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Configuration 后面的 status 用于设置 log4j2 自身内部的信息输出，可以不设置 -->
 <Configuration status="WARN" monitorInterval="30">
 
-    <!-- 定义全局变量，方便后续引用 -->
     <Properties>
-        <!-- 日志输出格式：增加了 [%X{traceId}] -->
         <Property name="LOG_PATTERN"
                   value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread][%X{traceId}] %-5level %logger{36} - %msg%n"/>
-        <!-- 日志文件存储路径 -->
         <Property name="LOG_FILE_PATH" value="/applogs/otx"/>
     </Properties>
 
     <Appenders>
-        <!-- 1. 控制台输出配置 -->
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="${LOG_PATTERN}"/>
         </Console>
 
-        <!-- 2. 滚动文件输出配置（按天归档，生产环境必备） -->
         <RollingFile name="RollingFile" fileName="${LOG_FILE_PATH}/app.log"
                      filePattern="${LOG_FILE_PATH}/app-%d{yyyy-MM-dd}-%i.log.gz">
             <PatternLayout pattern="${LOG_PATTERN}"/>
             <Policies>
-                <!-- 基于时间的触发策略：每天打包一次 -->
                 <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
-                <!-- 基于大小的触发策略：单个文件超过 100MB 滚动一次 -->
                 <SizeBasedTriggeringPolicy size="100 MB"/>
             </Policies>
-            <!-- 最多保留 30 个日志文件 -->
             <DefaultRolloverStrategy max="30"/>
         </RollingFile>
     </Appenders>
 
     <Loggers>
-        <!-- Root Logger 配置 -->
         <Root level="INFO">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
