@@ -46,6 +46,7 @@ public class DepositApplicationServiceImpl implements DepositApplicationService 
         }
 
         try {
+            // record before account update
             self.depositAtomic(request);
         } catch (BizIdempotentException e) {
             //ignored

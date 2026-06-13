@@ -1,0 +1,8 @@
+-Dspring.datasource.url=jdbc:mysql://localhost:3307/treasury_test
+-Dspring.datasource.username=root
+-Dspring.datasource.password=testmysql1234
+-Dspring.data.redis.host=localhost
+-Dspring.data.redis.port=6380
+-Dspring.data.redis.password=testredis1234
+-Dsnowflake-id.data-center-id=1
+-Dsnowflake-id.worker-id=2
