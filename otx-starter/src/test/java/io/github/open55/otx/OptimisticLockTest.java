@@ -2,10 +2,10 @@ package io.github.open55.otx;
 
 import cn.hutool.core.exceptions.ExceptionUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.github.open55.otx.account.service.AccountAppService;
-import io.github.open55.otx.exception.OptimisticLockException;
-import io.github.open55.otx.mapper.AccountMapper;
-import io.github.open55.otx.po.AccountPO;
+import io.github.open55.otx.application.account.service.AccountAppService;
+import io.github.open55.otx.common.exception.OptimisticLockException;
+import io.github.open55.otx.infrastructure.mapper.AccountMapper;
+import io.github.open55.otx.infrastructure.po.AccountPO;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
