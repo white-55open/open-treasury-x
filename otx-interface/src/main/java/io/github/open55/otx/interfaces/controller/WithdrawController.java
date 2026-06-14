@@ -1,7 +1,7 @@
 package io.github.open55.otx.interfaces.controller;
 
 import io.github.open55.otx.application.deposit.dto.ChangeAmountRequest;
-import io.github.open55.otx.application.deposit.service.DepositAppService;
+import io.github.open55.otx.application.withdraw.service.WithdrawAppService;
 import io.github.open55.otx.common.response.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,14 +10,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/deposit")
+@RequestMapping("/withdraw")
 @RequiredArgsConstructor
-public class DepositController {
+public class WithdrawController {
 
-    private final DepositAppService depositAppService;
+    private final WithdrawAppService withdrawAppService;
 
     @PostMapping
-    public Result<String> deposit(@RequestBody ChangeAmountRequest request) {
-        return Result.success(depositAppService.deposit(request));
+    public Result<String> withdraw(@RequestBody ChangeAmountRequest request) {
+        return Result.success(withdrawAppService.withdraw(request));
     }
 }
