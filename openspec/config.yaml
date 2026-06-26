@@ -1,20 +1,103 @@
 schema: spec-driven
 
-# 项目上下文（可选）
-# 在创建工件时向 AI 显示此信息。
-# 添加您的技术栈、约定、风格指南、领域知识等。
-# 示例：
-#   context: |
-#     技术栈：TypeScript, React, Node.js
-#     我们使用约定式提交
-#     领域：电商平台
+context: |
+  # Open Treasury X (OTX)
+  开源的 Web3 财务管理中间件，提供基于领域驱动的账本和资金管理系统，桥接区块链与应用层。
 
-# 每个工件的规则（可选）
-# 为特定工件添加自定义规则。
-# 示例：
-#   rules:
-#     proposal:
-#       - 保持提案在500字以内
-#       - 始终包含"非目标"部分
-#     tasks:
-#       - 将任务分解为最多2小时的块
+  ## 技术栈
+  - Java 21, Spring Boot 4.0.6
+  - Maven（多模块：otx-common, otx-domain, otx-infrastructure, otx-interface, otx-application, otx-starter）
+  - MyBatis-Plus 3.5.15 + MySQL
+  - Redis（Spring Data Redis，用于缓存）
+  - web3j 5.0.3（以太坊区块链客户端，已修复 CVE：Bouncy Castle 1.84, Vert.x 5.0.7）
+  - MapStruct 1.5.5.Final（对象映射）, Lombok（简化样板代码）
+  - SpringDoc OpenAPI 3.0.2（API 文档）
+  - Log4j2（日志，替换 Logback）
+  - Spring Retry 2.0.12 + Spring AOP 3.5.14
+  - Hutool 5.8.40（工具类库）
+
+  ## 架构
+  六边形架构（端口与适配器）+ 领域驱动设计，严格的层分离：
+  - otx-common：共享异常、常量、统一响应模型（Result<T>）、基础接口、工具类
+  - otx-domain：纯 Java 实体、值对象、仓储接口、枚举 —— 零框架依赖
+  - otx-application：应用服务、DTO、装配器 —— 编排领域层，管理事务
+  - otx-interface：REST 控制器、WebMVC 配置、拦截器
+  - otx-infrastructure：MyBatis-Plus 映射器、PO 类、转换器、区块链适配器、全局异常处理器、雪花 ID
+  - otx-starter：Spring Boot 入口、application.yaml、日志配置
+
+  层依赖关系：common -> domain -> application -> interface -> infrastructure -> starter
+  领域层为纯 Java —— 无任何框架注解。
+
+  ## 包命名规范
+  io.github.open55.otx.<层>.<限界上下文>.<类型>
+  限界上下文：account, fundflow, deposit, withdraw, ledger, common
+
+  ## 命名约定
+  - Entity 后缀：领域实体（AccountEntity, FundFlowEntity）
+  - PO 后缀：持久化对象（AccountPO, FundFlowPO）
+  - Repo/Repository 后缀：仓储接口（AccountRepo, FundFlowRepository）
+  - Mapper 后缀：MyBatis 映射器（AccountMapper）
+  - Converter 后缀：MapStruct PO-Entity 转换器（AccountConverter）
+  - AppService 后缀：应用服务（AccountAppService, DepositAppService）
+  - Controller 后缀：REST 控制器（AccountController）
+  - Request/Response 后缀：DTO（CreateAccountRequest, GetAccountResponse）
+  - Config 后缀：配置类（MyBatisConfig, WebMvcConfig）
+  - *Interceptor：拦截器（TraceIdInterceptor）
+  - *Handler：处理器（GlobalExceptionHandler, AuditMetaObjectHandler）
+
+  ## 编码规范
+  - Lombok：@Data 用于实体/DTO/PO，@Builder，@RequiredArgsConstructor（构造器注入），@Slf4j 用于服务类，@Getter + @RequiredArgsConstructor 用于枚举，@EqualsAndHashCode(callSuper = true) 用于继承基类的实体
+  - MapStruct：基于接口，使用 INSTANCE = Mappers.getMapper(...)，@Mapper(builder = @Builder(disableBuilder = true)) 避免与 Lombok builder 冲突
+  - MyBatis-Plus：继承 BaseMapper<T>，@TableName，@TableId(type = IdType.ASSIGN_ID)，@Version（乐观锁），@TableLogic（逻辑删除），@TableField(fill = FieldFill.INSERT/INSERT_UPDATE)，LambdaQueryWrapper 流式 API
+  - Spring：@Service, @Repository, @RestController, @Configuration，通过 @RequiredArgsConstructor 构造器注入，@Transactional(propagation = REQUIRES_NEW) 保证资金流水原子记录，@Retryable(retryFor = OptimisticLockException.class, maxAttempts = 5, backoff = @Backoff)
+  - 统一响应：Result<T> 包装类，包含 code, message, data, timestamp, traceId —— 所有响应返回 HTTP 200 状态码，业务错误通过业务码区分
+  - 链路追踪：TraceIdInterceptor 从 HTTP 头或 UUID 提取/注入 traceId，存储在 SLF4J MDC 中实现日志关联
+  - 异常层次：RuntimeException -> BizException（含 BizErrorEnum 的 code + message）；BizException -> OptimisticLockException；RuntimeException -> BizIdempotentException
+  - 雪花 ID：自定义 SnowflakeIdGeneratorImpl（纪元：1700000000000L，5-bit 工作节点，5-bit 数据中心，12-bit 序列号，通过配置属性设置 worker-id 和 data-center-id）
+  - 幂等性：fund_flow_t 表的 biz_no 唯一索引，DuplicateKeyException 转换为 BizIdempotentException
+  - 多租户：BaseEntity/BasePO 中包含 tenantId 字段（已定义但尚未在查询中启用）
+
+  ## 领域模型
+  - AccountEntity：uid（唯一业务键）、availableBalance、frozenBalance —— 领域方法：freezeBalance, unfreezeBalance, increaseBalance, withdraw, deposit
+  - FundFlowEntity：flowNo（唯一）、uid、bizNo（唯一幂等键）、amount、balanceBefore、balanceAfter、direction（IN/OUT）、type（DEPOSIT/WITHDRAW/FREEZE/UNFREEZE）
+  - LedgerEntryEntity：（规划中）复式记账，包含 DEBIT/CREDIT 分录类型
+  - BaseEntity：id, version（@Version）, deleteFlag（@TableLogic）, createdBy, createTime, lastUpdateTime, lastUpdatedBy, tenantId
+
+  ## 数据库
+  - account_t：id, uid（唯一索引）, available_balance（DECIMAL 38,18）, frozen_balance, version, delete_flag, created_by, last_updated_by, create_time, last_update_time, tenant_id
+  - fund_flow_t：id, flow_no（唯一索引）, uid, biz_no（唯一索引）, amount, balance_before, balance_after, direction, type, version, ..., tenant_id
+  - ledger_entry_t：（规划中）biz_no + account_code + entry_type 联合唯一索引
+
+  ## 测试
+  - JUnit 5 + Spring Boot Test 4.0.1（spring-boot-starter-test）
+  - Mockito 通过传递依赖可用
+  - otx-starter 中已有上下文加载测试和并发乐观锁测试
+
+  ## 构建与运行
+  - Maven 包装器（mvnw/mvnw.cmd），mvn clean install 构建全部 6 个模块
+  - 注解处理器顺序：Lombok -> Lombok-MapStruct-Binding -> MapStruct
+  - 服务端口：8003（默认）
+  - 数据库：MySQL（localhost:3307），Redis（localhost:6380）通过 -D 系统属性配置
+  - 雪花 ID：data-center-id=1, worker-id=2（默认）
+  - 日志：Log4j2 控制台 + 滚动文件输出到 /applogs/otx/app.log，格式包含 [%X{traceId}]
+  - 运行：java -jar otx-starter/target/otx-starter-0.0.1-SNAPSHOT.jar 带 JVM 参数
+
+  ## 提交规范
+  使用 Conventional Commits（feat, fix, refactor, docs, test, chore 等）
+
+rules:
+  proposal:
+    - 提案应简洁聚焦于单一变更
+    - 必须包含"动机"、"设计方案"和"非目标"章节
+    - 引用相关的限界上下文
+  design:
+    - 使用 ASCII 图表描述流程
+    - 明确 API 变更、数据库 schema 变更和领域模型变更
+    - 考虑幂等性和并发（乐观锁、重试）
+  tasks:
+    - 拆分为独立的小任务（每个最多 2 小时）
+    - 每个任务应可独立测试
+    - 每个任务包含测试要求
+  specs:
+    - 按限界上下文组织在 specs/<bounded-context>/spec.md 下
+    - 每个规范定义行为、不变量和验收标准
