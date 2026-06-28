@@ -5,7 +5,7 @@ import io.github.open55.otx.application.fundflow.dto.request.CreateFundFlowReque
 import io.github.open55.otx.application.fundflow.service.FundFlowAppService;
 import io.github.open55.otx.common.util.SnowflakeIdUtil;
 import io.github.open55.otx.domain.fundflow.entity.FundFlowEntity;
-import io.github.open55.otx.domain.fundflow.repository.FundFlowRepository;
+import io.github.open55.otx.domain.fundflow.repository.FundFlowRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +14,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class FundFlowAppServiceImpl implements FundFlowAppService {
-    private final FundFlowRepository repository;
+    private final FundFlowRepo repository;
 
     @Override
     public void record(CreateFundFlowRequest input) {

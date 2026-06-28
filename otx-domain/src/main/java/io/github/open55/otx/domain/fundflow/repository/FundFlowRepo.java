@@ -4,7 +4,7 @@ import io.github.open55.otx.domain.fundflow.entity.FundFlowEntity;
 
 import java.util.List;
 
-public interface FundFlowRepository {
+public interface FundFlowRepo {
 
     void save(FundFlowEntity fundFlow);
 

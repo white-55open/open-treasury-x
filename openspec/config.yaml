@@ -16,17 +16,155 @@ context: |
   - Spring Retry 2.0.12 + Spring AOP 3.5.14
   - Hutool 5.8.40（工具类库）
 
-  ## 架构
-  六边形架构（端口与适配器）+ 领域驱动设计，严格的层分离：
-  - otx-common：共享异常、常量、统一响应模型（Result<T>）、基础接口、工具类
-  - otx-domain：纯 Java 实体、值对象、仓储接口、枚举 —— 零框架依赖
-  - otx-application：应用服务、DTO、装配器 —— 编排领域层，管理事务
-  - otx-interface：REST 控制器、WebMVC 配置、拦截器
-  - otx-infrastructure：MyBatis-Plus 映射器、PO 类、转换器、区块链适配器、全局异常处理器、雪花 ID
-  - otx-starter：Spring Boot 入口、application.yaml、日志配置
+  ## 架构：DDD + 六边形架构（端口与适配器）
 
-  层依赖关系：common -> domain -> application -> interface -> infrastructure -> starter
-  领域层为纯 Java —— 无任何框架注解。
+  ### 分层架构
+
+  严格的依赖反转原则：所有依赖指向核心（domain），外层依赖内层，内层绝不感知外层。
+
+  ```
+                    ┌────────────────────────────────────────┐
+                    │               Starter                  │
+                    │          组合根 / 依赖注入              │
+                    └──────────┬───────────────┬─────────────┘
+                               │               │
+                  ┌────────────▼─────┐  ┌──────▼──────────────┐
+                  │   Interface      │  │  Infrastructure     │
+                  │  入站适配器       │  │  出站适配器          │
+                  │  REST 控制器     │  │  MyBatis/Redis/BC   │
+                  │  WebMVC 配置     │  │  (实现 domain 中的  │
+                  │  拦截器          │  │   出站端口)          │
+                  └────────┬─────────┘  └──────────┬──────────┘
+                           │ (调用)               │ (实现)
+                           │                      │
+                           ▼                      │
+                  ┌──────────────────┐            │
+                  │   Application    │            │
+                  │   应用层          │            │
+                  │  应用服务/用例   │            │
+                  │  入站端口/DTO   │            │
+                  │  事务管理        │            │
+                  └────────┬─────────┘            │
+                           │ (编排)               │
+                           ▼                       ▼
+                  ┌──────────────────────────────────────────┐
+                  │               Domain                      │
+                  │    实体 / 值对象 / 聚合 / 领域服务         │
+                  │    出站端口（仓储接口、领域事件）           │
+                  │             纯 Java，零框架依赖            │
+                  └──────────────────────────────────────────┘
+                  ┌──────────────────────────────────────────┐
+                  │              Common                      │
+                  │  异常、常量、统一响应、基础接口、工具类    │
+                  └──────────────────────────────────────────┘
+  ```
+
+  ### 层定义
+
+  - **otx-common（共享内核 / Shared Kernel）**：所有层共用的基础设施。包含自定义异常（BizException）、枚举（BizErrorEnum）、统一响应模型（Result<T>）、基础接口（SnowflakeIdGenerator）、工具类（SnowflakeIdUtil）。不包含任何业务逻辑。
+
+  - **otx-domain（领域层 / 六边形核心）**：纯 Java 模块，零框架依赖（无 Spring、无 JPA、无 Lombok 业务注解）。包含：
+    - **实体（Entity）**：具有唯一标识的领域对象（AccountEntity, FundFlowEntity），通过领域方法修改状态
+    - **值对象（Value Object）**：不可变对象，通过属性值判断相等，无唯一标识
+    - **聚合（Aggregate）**：实体及其值对象的一致性边界单元，通过聚合根访问
+    - **聚合根（Aggregate Root）**：聚合的唯一入口，仓储只操作聚合根
+    - **领域服务（Domain Service）**：无状态，协调多个聚合的复杂领域逻辑
+    - **出站端口（Outbound Ports）**：仓储接口（AccountRepo, FundFlowRepository）——契约定义在 domain，实现在 infrastructure
+    - **领域事件（Domain Event）**：记录业务发生时的重要事件，用于跨聚合通信
+    - **枚举**：业务相关的枚举（FundFlowDirectionEnum, FundFlowTypeEnum）
+
+  - **otx-application（应用层）**：用例编排层，六边形中的应用环。包含：
+    - **应用服务（Application Service）**：编排领域对象完成用例，管理事务和权限（AccountAppService）
+    - **入站端口（Inbound Ports）**：应用服务接口定义
+    - **入站 DTO**：请求/响应对象（CreateAccountRequest, GetAccountResponse）
+    - **装配器（Assembler）**：DTO 与实体之间的双向转换（AccountAssembler）
+    - 应用服务仅编排，不包含业务逻辑——业务逻辑在领域层
+
+  - **otx-interface（入站适配器层 / Inbound Adapters）**：外部世界进入系统的入口。包含：
+    - **REST 控制器（Controller）**：HTTP 请求处理（AccountController）
+    - **WebMVC 配置**：CORS、拦截器注册等
+    - **拦截器（Interceptor）**：TraceIdInterceptor——链路追踪
+    - 入站适配器调用应用层的入站端口，不直接访问领域层
+
+  - **otx-infrastructure（出站适配器层 / Outbound Adapters）**：实现 domain 层定义的出站端口。包含：
+    - **持久化适配器**：MyBatis-Plus Mapper + PO 类 + RepoImpl（实现 domain 层的 Repo 接口）
+    - **转换器（Converter）**：MapStruct PO <-> Entity 转换（AccountConverter）
+    - **缓存适配器**：Redis 缓存实现
+    - **区块链适配器**：web3j 客户端封装
+    - **技术组件**：雪花 ID 生成器实现（SnowflakeIdGeneratorImpl）、审计元数据填充器（AuditMetaObjectHandler）
+    - **全局异常处理器**：将异常转换为统一响应
+
+  - **otx-starter（组合根 / Composition Root）**：Spring Boot 入口，负责将各层组装在一起：
+    - **依赖注入配置**：所有 Bean 的装配
+    - **application.yaml**：外部化配置
+    - **日志配置**：Log4j2
+    - 不包含业务逻辑——仅连接各模块
+
+  ### 依赖规则
+
+  ```
+  interface ──→ application ──→ domain
+  infrastructure ──────────────→ domain（实现出站端口）
+  starter ──→ interface + infrastructure（组合根）
+  common 被所有层依赖，不依赖任何业务模块
+  ```
+
+  1. **domain**：零依赖（仅 Java SE，纯 Java —— 无框架注解）
+  2. **common**：零业务依赖，可被所有层依赖
+  3. **application**：依赖 domain、common
+  4. **interface**：依赖 application、domain、common（入站适配器调用应用层入站端口）
+  5. **infrastructure**：依赖 domain、common（实现 domain 层定义的出站端口——绝不依赖 application）
+  6. **starter**：依赖所有模块（组合根角色）
+  7. **反向依赖禁止**：domain 绝不能依赖 application、infrastructure 或 interface
+  8. **循环依赖禁止**：任何模块之间不能有循环依赖
+
+  ## DDD 战术模式约束
+
+  ### 聚合（Aggregate）约束
+  1. 每个聚合通过聚合根（Aggregate Root）访问，外部不能直接操作聚合内部对象
+  2. 聚合内部的一致性边界由聚合根保证
+  3. 一个事务只修改一个聚合——跨聚合一致性通过领域事件 + 最终一致性实现
+  4. 每个聚合对应一个仓储接口，仓储只操作聚合根
+  5. 聚合根通过标识（id）相等判断，而非属性值
+
+  ### 值对象（Value Object）约束
+  1. 不可变：所有字段为 final，不暴露 setter
+  2. 通过所有属性值判断相等（重写 equals/hashCode）
+  3. 无唯一标识
+  4. 自验证：构造时验证所有业务约束，确保始终有效
+
+  ### 实体（Entity）约束
+  1. 具有唯一标识（id 字段）
+  2. 可变：通过领域方法修改状态，不暴露属性 setter
+  3. 相等通过标识判断（equals/hashCode 基于 id）
+  4. 封装业务行为：所有状态变更通过有业务含义的方法（如 withdraw、deposit），而非直接修改字段
+
+  ### 领域服务（Domain Service）约束
+  1. 无状态（stateless），所有状态通过参数传入
+  2. 命名体现业务活动（动词 + 名词，如 TransferService、LedgerService）
+  3. 用于跨聚合的复杂领域逻辑或与外部系统协调的领域规则
+  4. 依赖接口（出站端口），不依赖具体实现
+
+  ### 仓储（Repository）约束
+  1. **接口**定义在 domain 层（出站端口）
+  2. **实现**在 infrastructure 层（出站适配器）
+  3. 接口命名体现集合语义（save、find、remove 而非 insert、select、delete）
+  4. 每个聚合根一个仓储接口
+  5. 仓储方法返回聚合根或聚合根集合，不返回 PO
+
+  ### 领域事件（Domain Event）约束
+  1. 不可变值对象
+  2. 过去时命名（AccountCreated、FundsDeposited、WithdrawCompleted）
+  3. 包含事件发生时所需的所有上下文数据
+  4. 跨聚合通信通过领域事件 + 事件总线，而非直接调用
+  5. 事件处理在应用层编排（发布事件、处理副作用）
+
+  ### 应用服务（Application Service）约束
+  1. 一个用例 = 一个应用服务公共方法
+  2. 职责：开启事务→调用领域对象→发布领域事件→返回结果
+  3. 不包含业务逻辑——仅编排和协调
+  4. 事务边界在应用服务层（@Transactional）
+  5. 幂等性和并发重试在应用服务层处理
 
   ## 包命名规范
   io.github.open55.otx.<层>.<限界上下文>.<类型>
@@ -35,7 +173,7 @@ context: |
   ## 命名约定
   - Entity 后缀：领域实体（AccountEntity, FundFlowEntity）
   - PO 后缀：持久化对象（AccountPO, FundFlowPO）
-  - Repo/Repository 后缀：仓储接口（AccountRepo, FundFlowRepository）
+  - Repo 后缀：仓储接口（AccountRepo, FundFlowRepo）
   - Mapper 后缀：MyBatis 映射器（AccountMapper）
   - Converter 后缀：MapStruct PO-Entity 转换器（AccountConverter）
   - AppService 后缀：应用服务（AccountAppService, DepositAppService）
@@ -86,18 +224,34 @@ context: |
   使用 Conventional Commits（feat, fix, refactor, docs, test, chore 等）
 
 rules:
+  architecture:
+    - 遵循 DDD + 六边形架构分层约束，禁止违反依赖方向（domain 绝不依赖 infrastructure/application/interface）
+    - 领域层必须为纯 Java（零框架注解：无 Spring、无 JPA、无 Lombok 业务注解）
+    - 一个事务只修改一个聚合——跨聚合一致性通过领域事件 + 最终一致性实现
+    - 仓储接口在 domain 层定义（出站端口），实现类在 infrastructure 层（出站适配器）
+    - 入站适配器（interface）调用应用层入站端口，不直接访问领域层
+    - 应用服务不包含业务逻辑，仅编排领域对象
+    - 聚合根通过工厂方法或仓储创建，不直接用 new 实例化复杂聚合
+    - 值对象必须不可变，且基于所有属性值判断相等
+    - 反向依赖和循环依赖严格禁止——通过 Maven 模块依赖关系强制检查
   proposal:
     - 提案应简洁聚焦于单一变更
     - 必须包含"动机"、"设计方案"和"非目标"章节
     - 引用相关的限界上下文
+    - 设计方案应说明变更影响的六边形层和 DDD 构件（聚合、实体、值对象、领域事件等）
   design:
     - 使用 ASCII 图表描述流程
-    - 明确 API 变更、数据库 schema 变更和领域模型变更
+    - 明确 API 变更、数据库 schema 变更、领域模型变更和聚合边界变更
     - 考虑幂等性和并发（乐观锁、重试）
+    - 说明跨聚合一致性策略（最终一致性 vs 强一致性）
+    - 明确领域事件的定义和传播方式
   tasks:
     - 拆分为独立的小任务（每个最多 2 小时）
     - 每个任务应可独立测试
     - 每个任务包含测试要求
+    - 建议按层拆分任务顺序：领域层 → 应用层 → 适配器层
+    - 领域层任务优先，确保业务逻辑独立于技术实现
   specs:
     - 按限界上下文组织在 specs/<bounded-context>/spec.md 下
     - 每个规范定义行为、不变量和验收标准
+    - 明确每个限界上下文的聚合根、聚合边界和领域事件

@@ -3,7 +3,7 @@ package io.github.open55.otx.infrastructure.repository;
 import cn.hutool.core.lang.Assert;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.open55.otx.domain.fundflow.entity.FundFlowEntity;
-import io.github.open55.otx.domain.fundflow.repository.FundFlowRepository;
+import io.github.open55.otx.domain.fundflow.repository.FundFlowRepo;
 import io.github.open55.otx.infrastructure.converter.FundFlowConverter;
 import io.github.open55.otx.infrastructure.mapper.FundFlowMapper;
 import io.github.open55.otx.infrastructure.po.FundFlowPO;
@@ -14,7 +14,7 @@ import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
-public class FundFlowRepoImpl implements FundFlowRepository {
+public class FundFlowRepoImpl implements FundFlowRepo {
     private final FundFlowMapper fundFlowMapper;
 
     @Override
