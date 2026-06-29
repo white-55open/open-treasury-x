@@ -32,3 +32,4 @@ build/
 ### VS Code ###
 .vscode/
 /logs/
+/otx-starter/src/main/resources/application-dev.yml
