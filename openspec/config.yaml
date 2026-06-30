@@ -87,8 +87,8 @@ context: |
     - 入站适配器调用应用层的入站端口，不直接访问领域层
 
   - **otx-infrastructure（出站适配器层 / Outbound Adapters）**：实现 domain 层定义的出站端口。包含：
-    - **持久化适配器**：MyBatis-Plus Mapper + PO 类 + RepoImpl（实现 domain 层的 Repo 接口）
-    - **转换器（Converter）**：MapStruct PO <-> Entity 转换（AccountConverter）
+    - **持久化适配器**：MyBatis-Plus Mapper + PO 类（**必须继承 `BasePO`**：id / version / deleteFlag / 审计字段 / tenantId 由基类统一管理，注解风格 `@Data` + `@EqualsAndHashCode(callSuper = true)` + `@TableName("<table>")`，参考 `AccountPO` / `FundFlowPO`）+ RepoImpl（实现 domain 层的 Repo 接口）
+    - **转换器（Converter）**：MapStruct PO <-> Entity 转换（AccountConverter），负责状态/枚举字段的 String ↔ Enum 双向映射
     - **缓存适配器**：Redis 缓存实现
     - **区块链适配器**：web3j 客户端封装
     - **技术组件**：雪花 ID 生成器实现（SnowflakeIdGeneratorImpl）、审计元数据填充器（AuditMetaObjectHandler）
@@ -128,16 +128,18 @@ context: |
   5. 聚合根通过标识（id）相等判断，而非属性值
 
   ### 值对象（Value Object）约束
-  1. 不可变：所有字段为 final，不暴露 setter
-  2. 通过所有属性值判断相等（重写 equals/hashCode）
-  3. 无唯一标识
-  4. 自验证：构造时验证所有业务约束，确保始终有效
+  1. 不可变：所有业务字段为 final，不暴露 setter
+  2. **持久化的值对象同样继承 `BaseEntity`**：DB 持久化需要 surrogate id 与审计/version 字段；业务字段保持 final（`@Data` 不会为 final 字段生成 setter，天然满足不可变），BaseEntity 的审计/version 字段保持默认可变（由框架在持久化时回填）
+  3. 通过所有属性值判断相等（重写 equals/hashCode）
+  4. 无业务唯一标识（surrogate id 是技术主键，非业务标识）
+  5. 自验证：构造时验证所有业务约束，确保始终有效
 
   ### 实体（Entity）约束
   1. 具有唯一标识（id 字段）
-  2. 可变：通过领域方法修改状态，不暴露属性 setter
-  3. 相等通过标识判断（equals/hashCode 基于 id）
-  4. 封装业务行为：所有状态变更通过有业务含义的方法（如 withdraw、deposit），而非直接修改字段
+  2. **必须继承 `BaseEntity`**：通过继承获得 id、version（@Version）、deleteFlag（@TableLogic）、审计字段（createdBy/createTime/lastUpdatedBy/lastUpdateTime）、tenantId 等基础设施字段；注解风格为 `@Data` + `@EqualsAndHashCode(callSuper = true)`（参考 `AccountEntity` / `FundFlowEntity`）
+  3. 可变：通过领域方法修改状态，不暴露属性 setter
+  4. 相等通过标识判断（equals/hashCode 基于 id）
+  5. 封装业务行为：所有状态变更通过有业务含义的方法（如 withdraw、deposit），而非直接修改字段
 
   ### 领域服务（Domain Service）约束
   1. 无状态（stateless），所有状态通过参数传入
@@ -186,7 +188,7 @@ context: |
   ## 编码规范
   - Lombok：@Data 用于实体/DTO/PO，@Builder，@RequiredArgsConstructor（构造器注入），@Slf4j 用于服务类，@Getter + @RequiredArgsConstructor 用于枚举，@EqualsAndHashCode(callSuper = true) 用于继承基类的实体
   - MapStruct：基于接口，使用 INSTANCE = Mappers.getMapper(...)，@Mapper(builder = @Builder(disableBuilder = true)) 避免与 Lombok builder 冲突
-  - MyBatis-Plus：继承 BaseMapper<T>，@TableName，@TableId(type = IdType.ASSIGN_ID)，@Version（乐观锁），@TableLogic（逻辑删除），@TableField(fill = FieldFill.INSERT/INSERT_UPDATE)，LambdaQueryWrapper 流式 API
+  - MyBatis-Plus：所有 PO 类**必须继承 `BasePO`**（id 由 `@TableId(ASSIGN_ID)` 雪花自增、version 由 `@Version` 乐观锁管理、deleteFlag 由 `@TableLogic` 软删除、4 个审计字段由 `@TableField(fill = INSERT/INSERT_UPDATE)` 配合 `AuditMetaObjectHandler` 自动填充、tenantId 手动填充），继承后子类只需声明业务字段；Mapper 继承 `BaseMapper<T>`，PO 标注 `@TableName("<table>")`；LambdaQueryWrapper 流式 API
   - Spring：@Service, @Repository, @RestController, @Configuration，通过 @RequiredArgsConstructor 构造器注入，@Transactional(propagation = REQUIRES_NEW) 保证资金流水原子记录，@Retryable(retryFor = OptimisticLockException.class, maxAttempts = 5, backoff = @Backoff)
   - 统一响应：Result<T> 包装类，包含 code, message, data, timestamp, traceId —— 所有响应返回 HTTP 200 状态码，业务错误通过业务码区分
   - 链路追踪：TraceIdInterceptor 从 HTTP 头或 UUID 提取/注入 traceId，存储在 SLF4J MDC 中实现日志关联
@@ -194,12 +196,16 @@ context: |
   - 雪花 ID：自定义 SnowflakeIdGeneratorImpl（纪元：1700000000000L，5-bit 工作节点，5-bit 数据中心，12-bit 序列号，通过配置属性设置 worker-id 和 data-center-id）
   - 幂等性：fund_flow_t 表的 biz_no 唯一索引，DuplicateKeyException 转换为 BizIdempotentException
   - 多租户：BaseEntity/BasePO 中包含 tenantId 字段（已定义但尚未在查询中启用）
+  - 测试注释：所有 test.java 文件（单元测试与集成测试）必须包含**中英双语**的测试意图注释——Test 类需有 Javadoc 说明被测对象与覆盖范围（中文一段 + 英文一段），每个 `@Test` 方法需有 Javadoc 描述该测试场景的业务含义与预期结果（中文一句 + 英文一句）。方法名采用 snake_case 业务命名（如 `construct_withInvalidAccountCode_throwsAccountCodeInvalid`），注释提供"为什么这样测"的语义补充
 
   ## 领域模型
   - AccountEntity：uid（唯一业务键）、availableBalance、frozenBalance —— 领域方法：freezeBalance, unfreezeBalance, increaseBalance, withdraw, deposit
   - FundFlowEntity：flowNo（唯一）、uid、bizNo（唯一幂等键）、amount、balanceBefore、balanceAfter、direction（IN/OUT）、type（DEPOSIT/WITHDRAW/FREEZE/UNFREEZE）
   - LedgerEntryEntity：（规划中）复式记账，包含 DEBIT/CREDIT 分录类型
   - BaseEntity：id, version（@Version）, deleteFlag（@TableLogic）, createdBy, createTime, lastUpdateTime, lastUpdatedBy, tenantId
+
+  ## 持久化模型
+  - BasePO：id（@TableId type=ASSIGN_ID）, version（@Version）, deleteFlag（@TableLogic）, createdBy（FieldFill.INSERT）, createTime（FieldFill.INSERT）, lastUpdateTime（FieldFill.INSERT_UPDATE）, lastUpdatedBy（FieldFill.INSERT_UPDATE）, tenantId（手动填充）；PO 与 Entity 字段一一对应，但 PO 中状态/枚举字段一律为 String（与 DB VARCHAR 一致），由 Converter 做 String ↔ Enum 互转
 
   ## 数据库
   - account_t：id, uid（唯一索引）, available_balance（DECIMAL 38,18）, frozen_balance, version, delete_flag, created_by, last_updated_by, create_time, last_update_time, tenant_id
@@ -234,6 +240,8 @@ rules:
     - 聚合根通过工厂方法或仓储创建，不直接用 new 实例化复杂聚合
     - 值对象必须不可变，且基于所有属性值判断相等
     - 反向依赖和循环依赖严格禁止——通过 Maven 模块依赖关系强制检查
+    - 所有领域实体（含持久化的值对象）必须继承 `BaseEntity`（id / version / 审计 / tenantId）；注解风格 `@Data` + `@EqualsAndHashCode(callSuper = true)`；值对象的业务字段保持 final 不可变
+    - 所有基础设施 PO 类必须继承 `BasePO`（id / version / deleteFlag / 审计 / tenantId）；注解风格 `@Data` + `@EqualsAndHashCode(callSuper = true)` + `@TableName("<table>")`；PO 与 Entity 字段一一对应，但 PO 中状态/枚举字段一律为 String，由 Converter 在 PO ↔ Entity 转换时做 String ↔ Enum 互转
   proposal:
     - 提案应简洁聚焦于单一变更
     - 必须包含"动机"、"设计方案"和"非目标"章节
@@ -255,3 +263,8 @@ rules:
     - 按限界上下文组织在 specs/<bounded-context>/spec.md 下
     - 每个规范定义行为、不变量和验收标准
     - 明确每个限界上下文的聚合根、聚合边界和领域事件
+  test:
+    - 所有 test.java 文件必须包含中英双语的测试意图注释：Test 类 Javadoc（中文一段 + 英文一段，说明被测对象与覆盖范围），每个 @Test 方法 Javadoc（中文一句 + 英文一句，描述场景的业务含义与预期结果）
+    - 测试方法名采用 snake_case 业务命名（如 `construct_withInvalidAccountCode_throwsAccountCodeInvalid`），做到"读名知意"
+    - 单元测试覆盖正常路径与所有错误码分支，集成测试覆盖端到端业务流与并发/幂等场景
+    - 测试数据构造使用具名常量或 builder，禁止魔法数字与硬编码字符串散落各处
