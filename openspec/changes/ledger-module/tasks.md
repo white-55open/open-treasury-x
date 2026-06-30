@@ -30,7 +30,7 @@
 
 ## 2. 域实体（Domain Entities）
 
-- [ ] 2.1 创建 LedgerEntryEntity（不可变值对象），删除旧半成品 `otx-domain/.../ledger/LedgerEntryEntity.java`，通过 `mvn -pl otx-domain compile`
+- [x] 2.1 创建 LedgerEntryEntity（不可变值对象），删除旧半成品 `otx-domain/.../ledger/LedgerEntryEntity.java`，通过 `mvn -pl otx-domain compile`
   - 字段全部 final：accountCode / entryType / amount / uid / counterparty / balanceAfter / remark
   - 构造时 self-validate：amount > 0、accountCode 在枚举内、entryType 在 DEBIT/CREDIT 内
   - 单元测试覆盖：amount≤0 抛 LEDGER_AMOUNT_INVALID、accountCode 非法抛 LEDGER_ACCOUNT_CODE_INVALID、entryType 非法抛 LEDGER_ENTRY_TYPE_INVALID
@@ -155,8 +155,9 @@
 
 ## 9. 应用服务（Application Service）
 
-- [ ] 9.1a 追加 12 个错误码到 BizErrorEnum，通过 `mvn -pl otx-common compile`
-  - 错误码：LEDGER_ENTRIES_EMPTY / LEDGER_NOT_BALANCED / LEDGER_DUPLICATE_ACCOUNT / LEDGER_BIZ_NO_EMPTY / LEDGER_CURRENCY_EMPTY / LEDGER_AMOUNT_INVALID / LEDGER_ENTRY_TYPE_INVALID / LEDGER_ACCOUNT_CODE_INVALID / LEDGER_JOURNAL_NOT_FOUND / LEDGER_JOURNAL_NOT_DRAFT / LEDGER_JOURNAL_NOT_POSTED / LEDGER_REVERSAL_NOT_FOUND
+- [ ] 9.1a 追加剩余 9 个错误码到 BizErrorEnum，通过 `mvn -pl otx-common compile`
+  - 错误码：LEDGER_ENTRIES_EMPTY / LEDGER_NOT_BALANCED / LEDGER_DUPLICATE_ACCOUNT / LEDGER_BIZ_NO_EMPTY / LEDGER_CURRENCY_EMPTY / LEDGER_JOURNAL_NOT_FOUND / LEDGER_JOURNAL_NOT_DRAFT / LEDGER_JOURNAL_NOT_POSTED / LEDGER_REVERSAL_NOT_FOUND
+  - 注：LEDGER_AMOUNT_INVALID / LEDGER_ACCOUNT_CODE_INVALID / LEDGER_ENTRY_TYPE_INVALID 三个已在 task 2.1 提前加入
 
 - [ ] 9.1b 创建 LedgerAppService 接口，通过 `mvn -pl otx-application compile`
   - 接口方法：`JournalDetailResponse postJournal(PostJournalRequest req)`、`JournalDetailResponse findByBizNo(String bizNo)`

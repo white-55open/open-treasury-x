@@ -19,7 +19,10 @@ public enum BizErrorEnum {
     ACCOUNT_NOT_EXIST("ACCOUNT_NOT_EXIST", "account not exist."),
     UNFREEZE_AMOUNT_INVALID("UNFREEZE_AMOUNT_INVALID", "unfreeze amount invalid."),
     INSUFFICIENT_FROZEN_BALANCE("INSUFFICIENT_FROZEN_BALANCE", "insufficient frozen balance."),
-    WITHDRAW_AMOUNT_INVALID("WITHDRAW_AMOUNT_INVALID", "withdraw amount invalid");
+    WITHDRAW_AMOUNT_INVALID("WITHDRAW_AMOUNT_INVALID", "withdraw amount invalid"),
+    LEDGER_AMOUNT_INVALID("LEDGER_AMOUNT_INVALID", "Ledger entry amount must be greater than zero."),
+    LEDGER_ACCOUNT_CODE_INVALID("LEDGER_ACCOUNT_CODE_INVALID", "Ledger account code is not in the allowed enum set."),
+    LEDGER_ENTRY_TYPE_INVALID("LEDGER_ENTRY_TYPE_INVALID", "Ledger entry type must be DEBIT or CREDIT.");
 
     private final String code;
 
