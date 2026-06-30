@@ -13,6 +13,8 @@ description: 提案新变更 - 一步创建并生成所有产出物
 
 ---
 
+**规则来源**：必须严格参考 `openspec/config.yaml` 中 `rules` 定义的所有规则。
+
 **输入**：`/opsx-propose` 之后的参数是变更名称（kebab-case），或用户想要构建内容的描述。
 
 **步骤**

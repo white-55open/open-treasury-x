@@ -1,6 +1,7 @@
 package io.github.open55.otx.domain.ledger;
 
 import io.github.open55.otx.common.exception.BizException;
+import io.github.open55.otx.domain.ledger.enums.LedgerAccountCodeEnum;
 import io.github.open55.otx.domain.ledger.enums.LedgerEntryTypeEnum;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,9 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @DisplayName("LedgerEntryEntity 不可变值对象单元测试 | LedgerEntryEntity immutable value object unit tests")
 class LedgerEntryEntityTest {
 
-    private static final String ACCOUNT_USER_AVAILABLE = "USER_AVAILABLE";
-    private static final String ACCOUNT_PLATFORM_HOT = "PLATFORM_HOT";
-    private static final String ACCOUNT_BOGUS = "BOGUS_ACCOUNT";
+    private static final LedgerAccountCodeEnum ACCOUNT_USER_AVAILABLE = LedgerAccountCodeEnum.USER_AVAILABLE;
+    private static final LedgerAccountCodeEnum ACCOUNT_PLATFORM_HOT = LedgerAccountCodeEnum.PLATFORM_HOT;
 
     private static final long TEST_UID = 12345L;
 
@@ -102,24 +102,6 @@ class LedgerEntryEntityTest {
                     null,
                     null));
             assertEquals(ERR_AMOUNT_INVALID, ex.getErrorCode());
-        }
-
-        /**
-         * 场景：accountCode 不在 LedgerAccountCodeEnum 枚举集合内，应抛 LEDGER_ACCOUNT_CODE_INVALID。
-         * Scenario: accountCode outside the LedgerAccountCodeEnum enum set must throw LEDGER_ACCOUNT_CODE_INVALID.
-         */
-        @Test
-        @DisplayName("未知 accountCode 抛 LEDGER_ACCOUNT_CODE_INVALID | Unknown accountCode throws LEDGER_ACCOUNT_CODE_INVALID")
-        void construct_withInvalidAccountCode_throwsAccountCodeInvalid() {
-            BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
-                    ACCOUNT_BOGUS,
-                    LedgerEntryTypeEnum.DEBIT,
-                    AMOUNT_100,
-                    TEST_UID,
-                    null,
-                    null,
-                    null));
-            assertEquals(ERR_ACCOUNT_CODE_INVALID, ex.getErrorCode());
         }
 
         /**

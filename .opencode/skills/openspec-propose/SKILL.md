@@ -20,6 +20,8 @@ metadata:
 
 ---
 
+**规则来源**：必须严格参考 `openspec/config.yaml` 中 `rules` 定义的所有规则。
+
 **输入**：用户的请求应包含变更名称（kebab-case）或对他们想要构建内容的描述。
 
 **步骤**

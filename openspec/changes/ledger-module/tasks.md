@@ -1,28 +1,27 @@
 # 任务清单：Ledger 模块
 
-> ## 实施节奏（强制契约）
->
-> 每个 task 是独立的 review + 试运行单元，AI 与用户的契约如下：
->
+> ## 执行流程（强制契约）
+> 
+> ### 默认流程（逐个 task 执行）
+> 
 > 1. **执行**：实现该 task 标明的所有内容（代码 + 测试 + 配置）。
-> 2. **AI 自验**：执行 task 末尾的 mvn 验证命令，必须编译成功且相关测试通过。
-> 3. **报告**：向用户输出：
->    - 新增/修改文件清单（带路径）
->    - 编译/测试结果
->    - 关键设计决策与注意事项
-> 4. **人工 review**：用户 review 代码（目标 10 分钟内），自行试运行。
-> 5. **Continue**：用户显式 ack 后，AI 才执行下一个 task。
-> 6. **commit**：每 task ack 后，AI 自动 `git commit`（message 形如 `feat(ledger): 1.1 add 4 domain enums`）。
->
+> 2. **验证**：执行 task 末尾的 mvn 验证命令，必须编译成功且相关测试通过。
+> 3. **展示变更摘要**：向用户输出新增/修改文件清单（带路径）、编译/测试结果、关键设计决策与注意事项。
+> 4. **提醒人工 review**：提示用户 review 代码（目标 10 分钟内），确认无误后输入 `continue` 继续。
+> 5. **等待用户 ack**：用户输入 `continue` 后，AI 自动 `git commit`（message 中英双语，如 `feat(ledger): 添加 4 个域枚举 / feat(ledger): add 4 domain enums`），然后继续下一个 task。
+> 
 > **禁止**：跨 task 批量实现；跳过编译验证；用户未 ack 进入下一个。
 > **回滚**：任意 task 出问题，`git revert` 即可，已提交历史不被破坏。
->
 > 颗粒度规则：每个 task 单一目标、AI 实现 ≤30 分钟、人工 review ≤10 分钟、对应一次 commit。
 > 测试要求：domain 层 task 必须配单元测试；infra/application task 通过 mvn test 验证；接口层 task 通过接口层单测验证。
+> 
+> ### 非默认流程
+> 
+> - 用户必须明确指定执行到哪个编号（如"执行到 task 3"），或指定一次执行完所有 task（如"全部执行"），否则按默认逐个 task 执行。
 
 ## 1. 域枚举（Domain Enums）
 
-- [x] 1.1 创建 4 个枚举类（LedgerJournalStatusEnum / LedgerEntryTypeEnum / LedgerBizTypeEnum / LedgerAccountCodeEnum），通过 `mvn -pl otx-domain compile`
+- [ ] 1.1 创建 4 个枚举类（LedgerJournalStatusEnum / LedgerEntryTypeEnum / LedgerBizTypeEnum / LedgerAccountCodeEnum），通过 `mvn -pl otx-domain compile`
   - 状态：DRAFT / POSTED / REVERSED
   - Entry 方向：DEBIT / CREDIT
   - 业务类型：DEPOSIT_ONCHAIN / WITHDRAW_ONCHAIN / INTERNAL_TRANSFER / FEE / REVERSAL / ADJUSTMENT
@@ -30,7 +29,7 @@
 
 ## 2. 域实体（Domain Entities）
 
-- [x] 2.1 创建 LedgerEntryEntity（不可变值对象），删除旧半成品 `otx-domain/.../ledger/LedgerEntryEntity.java`，通过 `mvn -pl otx-domain compile`
+- [ ] 2.1 创建 LedgerEntryEntity（不可变值对象），删除旧半成品 `otx-domain/.../ledger/LedgerEntryEntity.java`，通过 `mvn -pl otx-domain compile`
   - 字段全部 final：accountCode / entryType / amount / uid / counterparty / balanceAfter / remark
   - 构造时 self-validate：amount > 0、accountCode 在枚举内、entryType 在 DEBIT/CREDIT 内
   - 单元测试覆盖：amount≤0 抛 LEDGER_AMOUNT_INVALID、accountCode 非法抛 LEDGER_ACCOUNT_CODE_INVALID、entryType 非法抛 LEDGER_ENTRY_TYPE_INVALID

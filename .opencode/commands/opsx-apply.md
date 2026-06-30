@@ -4,6 +4,8 @@ description: 实现 OpenSpec 变更中的任务（实验性）
 
 实现 OpenSpec 变更中的任务。
 
+**规则来源**：必须严格参考 `openspec/config.yaml` 中 `rules` 定义的所有规则。
+
 **输入**：可选择指定变更名称（例如，`/opsx-apply add-auth`）。如果省略，检查是否可以从对话上下文中推断出来。如果模糊或不明确，你必须提示可用的变更。
 
 **步骤**

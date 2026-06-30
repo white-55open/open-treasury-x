@@ -1,6 +1,6 @@
 # 提案：Ledger 模块（企业级总账 + Web3 账本）
 
-## 为什么
+## 动机
 
 当前 Open Treasury X 的资金模型存在三处根本性缺口，使其无法承载"企业级 + Web3"的资金管理诉求：
 
@@ -10,7 +10,7 @@
 
 `V2__ledger.sql` 已建出 `ledger_entry_t` 表（含 `biz_no + account_code + entry_type` 联合唯一索引），domain 层也已存在半成品 `LedgerEntryEntity`——这是一个明确的"未完成信号"。本变更正是要把这条线从"半成品"推进到"完整骨架"。
 
-## 变更内容
+## 设计方案
 
 ### 新增能力
 
@@ -39,7 +39,7 @@
 | `otx-interface` | 1 个 `LedgerController` |
 | `docs/sql` | 重写 V2 + 新建 V3 + 新建 V4 |
 
-## 非目标（明确不做）
+## 非目标
 
 本变更聚焦"总账骨架"，以下事项不在本期范围：
 
@@ -52,28 +52,28 @@
 - ❌ **多租户隔离查询增强**：`tenant_id` 字段已建，查询级 tenant 过滤留待基础设施增强。
 - ❌ **领域事件发布**：`JournalPosted` / `JournalReversed` 等事件本期不发布，跨聚合通信用同步调用即可，事件机制在后续"应用服务编排"阶段统一引入。
 
-## 影响
+### 影响范围
 
-### 限界上下文
+#### 限界上下文
 
 - **新增** `ledger` 限界上下文（domain / application / infrastructure 三层同时建立）。
 - **弱依赖** `account` 上下文（通过 `account_code` 字段关联，不修改 Account 实体）。
 - **弱依赖** `fundflow` 上下文（共用 `biz_no` 幂等键，DepositAppService 后续可串接 ledger，本期暂不改造）。
 
-### 架构层
+#### 架构层
 
 - Domain 层：新增聚合 `LedgerJournal`，新增值对象 `LedgerEntry`，新增出站端口 `LedgerJournalRepo` / `LedgerEntryRepo` / `ChainQueryPort`。
 - Application 层：新增 `LedgerAppService.postJournal` / `findByBizNo` 两个用例，事务边界与重试策略沿用 `AccountAppService` 的样板（REQUIRES_NEW + @Retryable + DuplicateKey → BizIdempotent）。
 - Infrastructure 层：MyBatis-Plus + MapStruct 出站适配器，零侵入既有 ORM 配置。
 - Interface 层：Spring MVC 入站适配器，REST 端点遵循 `Result<T>` 统一响应。
 
-### 兼容性
+#### 兼容性
 
 - 不破坏 `AccountAppService` 既有行为。
 - 不修改 `account_t` / `fund_flow_t` 既有数据，仅追加 `account_code` 列。
 - 旧半成品 `LedgerEntryEntity`（位于 `otx-domain/.../ledger/`，无 .entity 子包）被同包同名的最终版替代，避免重复定义。
 
-### 风险
+#### 风险
 
 | 风险 | 缓解 |
 |---|---|

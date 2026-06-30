@@ -196,8 +196,7 @@ context: |
   - 雪花 ID：自定义 SnowflakeIdGeneratorImpl（纪元：1700000000000L，5-bit 工作节点，5-bit 数据中心，12-bit 序列号，通过配置属性设置 worker-id 和 data-center-id）
   - 幂等性：fund_flow_t 表的 biz_no 唯一索引，DuplicateKeyException 转换为 BizIdempotentException
   - 多租户：BaseEntity/BasePO 中包含 tenantId 字段（已定义但尚未在查询中启用）
-  - 注释与描述：**所有由 AI 生成或修改的注释、Javadoc、Markdown 描述、提交说明、OpenSpec 产出物（proposal / design / tasks / spec）必须中英双语**——中文在前/在上，英文在后/在下，语义等价；标识符、代码、SQL、配置、日志标签等不需要翻译；具体细则见下方 `rules.documentation` 铁律 / Comments & descriptions: all AI-generated or AI-modified comments, Javadoc, Markdown descriptions, commit messages, and OpenSpec artifacts (proposal / design / tasks / spec) MUST be bilingual (Chinese first/on top, English second/after, semantically equivalent). Identifiers, code, SQL, config, and log tags do not require translation. See the `rules.documentation` iron rule below for details
-  - 测试注释：所有 test.java 文件（单元测试与集成测试）必须包含**中英双语**的测试意图注释——Test 类需有 Javadoc 说明被测对象与覆盖范围（中文一段 + 英文一段），每个 `@Test` 方法需有 Javadoc 描述该测试场景的业务含义与预期结果（中文一句 + 英文一句）。方法名采用 snake_case 业务命名（如 `construct_withInvalidAccountCode_throwsAccountCodeInvalid`），注释提供"为什么这样测"的语义补充
+  - 注释与描述：**代码注释、Javadoc、Markdown 描述、OpenSpec 产出物（proposal / design / tasks / spec）使用中文；Git 提交说明使用中英双语**（中文在前，英文在后，语义等价）。标识符、代码、SQL、配置、日志标签等不需要翻译；具体细则见下方 `rules.documentation` 铁律
 
   ## 领域模型
   - AccountEntity：uid（唯一业务键）、availableBalance、frozenBalance —— 领域方法：freezeBalance, unfreezeBalance, increaseBalance, withdraw, deposit
@@ -228,30 +227,27 @@ context: |
   - 运行：java -jar otx-starter/target/otx-starter-0.0.1-SNAPSHOT.jar 带 JVM 参数
 
   ## 提交规范
-  使用 Conventional Commits（feat, fix, refactor, docs, test, chore 等）
+  使用 Conventional Commits（feat, fix, refactor, docs, test, chore 等），说明文字必须使用中英双语（中文在前，英文在后）
 
 rules:
-  # =========================================================================
-  # 铁律 / Iron Rule —— 中英双语注释与描述
-  # Bilingual (Chinese-English) Comments & Descriptions
-  # -------------------------------------------------------------------------
-  # 适用范围：所有由 AI 助手（本仓库的 opencode 代理）生成或修改的注释、文档、提交说明、OpenSpec 提案/任务/spec 描述、代码内 Javadoc、Markdown 文档。
-  # Scope: all comments, docs, commit messages, OpenSpec proposals/tasks/specs,
-  # Javadoc, and Markdown docs generated or modified by the AI assistant.
-  # -------------------------------------------------------------------------
-  # 格式 / Format: 中文在上/在前，英文在下/在后；语义等价，不省略关键信息。
-  # 例外 / Exceptions: 标识符（包名/类名/方法名/变量名/常量名）、日志标签、协议字段等不需要翻译。
-  # 目的 / Purpose: 兼顾中文母语团队的可读性与英文国际协作的可访问性。
-  # =========================================================================
   documentation:
-    - 铁律：所有由 AI 生成或修改的注释、Javadoc、Markdown 描述、提交说明、OpenSpec 提案/任务/spec 描述必须包含中英双语版本，中文在前/在上，英文在后/在下，语义等价 / Iron rule: all AI-generated or AI-modified comments, Javadoc, Markdown descriptions, commit messages, and OpenSpec proposal/task/spec descriptions MUST be bilingual (Chinese first/on top, English second/after), with semantically equivalent content
-    - 例外：标识符（包名、类名、方法名、变量名、常量名、字段名）、日志标签、协议头/字段名、枚举字面量、SQL/DSL 关键字、JSON 键等不需要翻译 / Exceptions: identifiers (package, class, method, variable, constant, field names), log tags, protocol headers/fields, enum literals, SQL/DSL keywords, and JSON keys do NOT require translation
-    - 简要注释（行尾 //、/* */）若语义简短可仅写中文，但建议在关键位置补一句英文以保持一致性 / Brief inline comments (trailing //, /* */) may use Chinese only when extremely short, but adding an English equivalent at key locations is recommended for consistency
-    - 公开 API 的 Javadoc 必须双语（中文段 + 英文段），便于 API 文档国际化输出 / Javadoc on public APIs MUST be bilingual (Chinese paragraph + English paragraph) to support internationalized API documentation
-    - 业务术语首次出现时给出中英对照（如"聚合根 Aggregate Root"），后续可单语引用以避免冗余 / On first occurrence, provide bilingual business term pairs (e.g., "聚合根 Aggregate Root"); subsequent references may use a single language to avoid redundancy
-    - 翻译必须保持技术准确性，禁止机翻生硬直译；专有名词（如 DDD、Aggregate、Repository）保留英文原称 / Translations must preserve technical accuracy; avoid mechanical literal translation. Keep proper nouns (DDD, Aggregate, Repository, etc.) in their original English form
-    - OpenSpec 产出物（proposal.md / design.md / tasks.md / spec.md）的"## Why" / "## What" / "任务说明"等标题下，正文段落须中英双语成对出现 / In OpenSpec artifacts (proposal.md / design.md / tasks.md / spec.md), body paragraphs under section headings (e.g., "## Why", "## What", task descriptions) MUST appear as bilingual pairs
-    - 代码示例、命令、SQL、配置片段保持原样不翻译；其上方/下方的解释性文字须双语 / Code examples, commands, SQL, and config snippets stay untranslated; surrounding explanatory text MUST be bilingual
+    - 代码注释Javadoc：全部使用中文，无需附带英文版本。例外：标识符、日志标签、枚举字面量、SQL/DSL 关键字、JSON 键等保持原样
+    - Markdown 文档描述：全部使用中文，无需附带英文版本
+    - OpenSpec 产出物（proposal.md / design.md / tasks.md / spec.md）：全部使用中文。标题及正文段落均无需附带英文版本
+    - Git 提交说明：必须使用中英双语，中文在前/在上，英文在后/在下，语义等价。格式示例：`feat:添加账户冻结功能 / feat:add account freeze feature`
+    - 代码示例、命令、SQL、配置片段保持原样不翻译；其上方/下方的解释性文字使用中文
+    - 业务术语首次出现时推荐给出中英对照（如"聚合根 Aggregate Root"），后续可单语引用
+    - 公开 API 的 Javadoc 使用中文，方法签名和参数名保持英文
+    - 实体（Entity）、值对象（Value Object）、持久化对象（PO）、DTO（Request/Response）的**每个业务字段**必须使用中文 Javadoc（`/** ... */` 多行格式）说明其业务含义，禁止单行 `//` 行注释或单行 `/** */` 紧凑注释。示例：
+      ```java
+      /**
+       * 用户唯一标识，作为账户的业务键
+       */
+      private Long uid;
+      ```
+      禁止出现无注释裸字段
+    - 领域方法（含实体/值对象的领域方法、应用服务方法、控制器方法）必须使用中文 Javadoc 说明其业务行为、参数含义和返回值含义。方法体内关键逻辑分支（if/else、异常抛出的条件等）必须用中文行内注释说明判断理由
+    - MapStruct Converter 的每个映射方法必须使用中文注释说明转换方向（如"Entity → PO"）及特殊映射规则（如枚举字段 String ↔ Enum 互转）
   architecture:
     - 遵循 DDD + 六边形架构分层约束，禁止违反依赖方向（domain 绝不依赖 infrastructure/application/interface）
     - 领域层必须为纯 Java（零框架注解：无 Spring、无 JPA、无 Lombok 业务注解）
@@ -281,12 +277,14 @@ rules:
     - 每个任务包含测试要求
     - 建议按层拆分任务顺序：领域层 → 应用层 → 适配器层
     - 领域层任务优先，确保业务逻辑独立于技术实现
+    - 执行流程（默认）：执行当前任务 → 验证 → 展示代码变更摘要 → 提醒用户人工 review 代码 → 用户提交 git commit → 用户确认"continue"后继续下一个任务
+    - 执行流程（非默认）：用户必须明确指定执行到哪个编号（如"执行到 task 3"），或指定一次执行完所有 task（如"全部执行"），否则按默认逐个任务执行
   specs:
     - 按限界上下文组织在 specs/<bounded-context>/spec.md 下
     - 每个规范定义行为、不变量和验收标准
     - 明确每个限界上下文的聚合根、聚合边界和领域事件
   test:
-    - 所有 test.java 文件必须包含中英双语的测试意图注释：Test 类 Javadoc（中文一段 + 英文一段，说明被测对象与覆盖范围），每个 @Test 方法 Javadoc（中文一句 + 英文一句，描述场景的业务含义与预期结果）
+    - 所有 test.java 文件必须包含测试意图注释：Test 类 Javadoc（中文，说明被测对象与覆盖范围），每个 @Test 方法 Javadoc（中文，描述场景的业务含义与预期结果）
     - 测试方法名采用 snake_case 业务命名（如 `construct_withInvalidAccountCode_throwsAccountCodeInvalid`），做到"读名知意"
     - 单元测试覆盖正常路径与所有错误码分支，集成测试覆盖端到端业务流与并发/幂等场景
     - 测试数据构造使用具名常量或 builder，禁止魔法数字与硬编码字符串散落各处
