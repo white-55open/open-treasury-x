@@ -22,7 +22,7 @@
 
 ## 1. 域枚举（Domain Enums）
 
-- [ ] 1.1 创建 4 个枚举类（LedgerJournalStatusEnum / LedgerEntryTypeEnum / LedgerBizTypeEnum / LedgerAccountCodeEnum），通过 `mvn -pl otx-domain compile`
+- [x] 1.1 创建 4 个枚举类（LedgerJournalStatusEnum / LedgerEntryTypeEnum / LedgerBizTypeEnum / LedgerAccountCodeEnum），通过 `mvn -pl otx-domain compile`
   - 状态：DRAFT / POSTED / REVERSED
   - Entry 方向：DEBIT / CREDIT
   - 业务类型：DEPOSIT_ONCHAIN / WITHDRAW_ONCHAIN / INTERNAL_TRANSFER / FEE / REVERSAL / ADJUSTMENT
