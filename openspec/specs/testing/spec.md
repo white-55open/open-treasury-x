@@ -22,15 +22,67 @@
 
 ### 需求:测试命名必须遵循统一格式
 
-测试方法名应优先采用 `should_<expected>_when_<condition>` 或 `given_<condition>_should_<expected>` 风格；若项目采用中文显示名，则 `@DisplayName` 必须与方法名语义一致。
+测试方法名采用 snake_case 的 `methodUnderTest_scenario_expectedBehavior` 风格（如 `construct_withInvalidAccountCode_throwsAccountCodeInvalid`），做到"读名知意"。该约定与项目 `config.yaml` 一致，覆盖本规范原先的 `should_<expected>_when_<condition>` 风格。`@DisplayName` 必须与该方法名语义一致——不得表达相反含义。
 
 #### 场景:方法名与显示名一致
-- **当** 测试方法使用英文命名时
+- **当** 测试方法使用英文 snake_case 命名时
 - **那么** `@DisplayName` 不得与方法名表达相反含义
 
 #### 场景:参数化测试也必须可读
 - **当** 使用参数化测试
 - **那么** 每组参数必须带有可读的 case 名称，不能只显示原始入参值
+
+### 需求:测试类与测试方法必须使用结构化注解
+
+测试类与测试方法必须使用 JUnit 5 的标准注解提供可读、可审计、可国际化的元信息。
+
+#### 场景:测试类必须有中英双语 DisplayName
+- **当** 编写任意测试类
+- **那么** 必须在类级别标注 `@DisplayName` 并使用 `"中文 | English"` 分隔符同时给出中文与英文显示名，例如 `@DisplayName("LedgerEntryEntity 不可变值对象单元测试 | LedgerEntryEntity immutable value object unit tests")`
+
+#### 场景:相关测试必须用 @Nested 分组
+- **当** 一个被测对象存在多个行为簇（构造校验、字段透传、状态转换、继承语义、领域服务编排等）
+- **那么** 必须使用 `@Nested` 内部类按行为簇分组，每组嵌套类本身也需标注中英双语的 `@DisplayName`；不允许将所有 `@Test` 平铺在一个类中（除非被测对象行为簇单一）
+
+#### 场景:每个 @Test 方法必须标注中英双语 DisplayName
+- **当** 编写任意 `@Test` 方法
+- **那么** 必须紧跟 `@DisplayName("中文 | English")`，中文一句描述场景，英文一句描述场景；命名风格必须复述方法名而非引入新信息
+
+#### 场景:每个 @Test 方法必须有 Javadoc
+- **当** 编写任意 `@Test` 方法
+- **那么** 必须在 `@Test` 注解之上放置 Javadoc 块（`/** ... */`），块内首行写 `场景：...`，第二行写 `Scenario: ...`，注释提供"为什么这样测"的业务语义补充；Javadoc 块不得放在方法体内（不合 JLS）
+
+#### 场景:测试类本身必须有 Javadoc
+- **当** 编写任意测试类
+- **那么** 必须在类声明之上放置 Javadoc 块，中文段在前说明被测对象与覆盖范围，英文段在后给出等价描述
+
+### 需求:测试代码必须消除魔法值
+
+测试数据中出现的字符串、数字、枚举等字面量必须抽取为 `private static final` 命名常量，禁止在测试体内硬编码散落。
+
+#### 场景:重复使用的测试数据抽取为常量
+- **当** 同一个字面量（错误码字符串、账户编码、测试 uid、金额值等）在多个测试中重复出现
+- **那么** 必须在类顶部抽取为 `private static final` 命名常量（如 `ERR_AMOUNT_INVALID`、`ACCOUNT_USER_AVAILABLE`、`TEST_UID`、`AMOUNT_100`），测试体中只引用常量
+
+#### 场景:复合测试数据使用工厂方法
+- **当** 一个测试需要构造一个复杂领域对象（实体、聚合、请求 DTO）且该对象在多个测试中复用
+- **那么** 应抽取为 `private static` 工厂方法（如 `newValidEntry()`、`newEntryWithAmount(BigDecimal amount)`），方法命名体现构造意图
+
+#### 场景:仅在单个测试中使用的一次性数据保持内联
+- **当** 一个字面量仅在单个 `@Test` 方法中使用且不复用
+- **那么** 可保留内联，但应使用语义清晰的字面量（如 `"BOGUS_ACCOUNT"`、`new BigDecimal("-1")`），避免无意义数字（`1`、`2`、`3`）
+
+### 需求:测试代码必须遵循统一的 import 顺序
+
+测试文件的 import 必须按 Java 通用约定排序，编译器与 IDE 格式化器一致。
+
+#### 场景:import 分组顺序
+- **当** 编写测试文件
+- **那么** import 顺序必须为：① `java.*` 与 `javax.*` ② 第三方（`org.junit.jupiter.*`、Spring、Mockito、AssertJ 等）③ 项目自身（`io.github.open55.otx.*`）④ 静态 import；同组内按字母序排列；每组之间留一空行
+
+#### 场景:断言方法必须静态导入
+- **当** 在测试中调用 JUnit 5 断言（`assertEquals`、`assertThrows`、`assertNotNull` 等）
+- **那么** 必须使用静态 import（`import static org.junit.jupiter.api.Assertions.assertEquals;`），禁止使用 FQCN（`org.junit.jupiter.api.Assertions.assertEquals(...)`）以保持代码整洁
 
 ### 需求:单元测试必须遵循 AAA 结构
 
@@ -99,3 +151,7 @@
 - 禁止以覆盖率数字替代行为断言质量。
 - 禁止把多个独立失败原因塞进一个测试。
 - 禁止在测试中隐藏业务意图，测试名必须可作为规范文档阅读。
+- 禁止将 Javadoc 块（`/** ... */`）放在方法体内——Javadoc 必须紧贴方法签名之上。
+- 禁止在测试中混用 FQCN 形式的断言调用——所有 JUnit 5 断言必须通过静态 import 使用。
+- 禁止将所有 `@Test` 平铺在单一层级——当被测对象存在多个行为簇时必须使用 `@Nested` 分组。
+- 禁止在测试体中硬编码重复出现的字面量——必须抽取为 `private static final` 命名常量或工厂方法。

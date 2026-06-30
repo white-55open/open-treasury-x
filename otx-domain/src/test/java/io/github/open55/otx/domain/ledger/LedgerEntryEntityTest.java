@@ -2,6 +2,8 @@ package io.github.open55.otx.domain.ledger;
 
 import io.github.open55.otx.common.exception.BizException;
 import io.github.open55.otx.domain.ledger.enums.LedgerEntryTypeEnum;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -23,172 +25,215 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Covers three core constructor self-validations (accountCode legality, entryType legality,
  * positive amount), plus field delegation and BaseEntity-inherited audit field accessibility.
  */
+@DisplayName("LedgerEntryEntity 不可变值对象单元测试 | LedgerEntryEntity immutable value object unit tests")
 class LedgerEntryEntityTest {
 
-    @Test
-    void construct_withValidArgs_exposesAllFields() {
-        /**
-         * 场景：传入全部合法参数，应正确透传所有业务字段。
-         * Scenario: All business fields are exposed verbatim when valid args are provided.
-         */
-        LedgerEntryEntity entry = new LedgerEntryEntity(
-                "USER_AVAILABLE",
-                LedgerEntryTypeEnum.DEBIT,
-                new BigDecimal("100"),
-                12345L,
-                "0xabc",
-                new BigDecimal("900"),
-                "test remark");
+    private static final String ACCOUNT_USER_AVAILABLE = "USER_AVAILABLE";
+    private static final String ACCOUNT_PLATFORM_HOT = "PLATFORM_HOT";
+    private static final String ACCOUNT_BOGUS = "BOGUS_ACCOUNT";
 
-        assertEquals("USER_AVAILABLE", entry.getAccountCode());
-        assertSame(LedgerEntryTypeEnum.DEBIT, entry.getEntryType());
-        assertEquals(new BigDecimal("100"), entry.getAmount());
-        assertEquals(12345L, entry.getUid());
-        assertEquals("0xabc", entry.getCounterparty());
-        assertEquals(new BigDecimal("900"), entry.getBalanceAfter());
-        assertEquals("test remark", entry.getRemark());
-    }
+    private static final long TEST_UID = 12345L;
 
-    @Test
-    void construct_withZeroAmount_throwsAmountInvalid() {
+    private static final BigDecimal AMOUNT_100 = new BigDecimal("100");
+    private static final BigDecimal AMOUNT_900 = new BigDecimal("900");
+    private static final BigDecimal AMOUNT_NEG_1 = new BigDecimal("-1");
+
+    private static final String ERR_AMOUNT_INVALID = "LEDGER_AMOUNT_INVALID";
+    private static final String ERR_ACCOUNT_CODE_INVALID = "LEDGER_ACCOUNT_CODE_INVALID";
+    private static final String ERR_ENTRY_TYPE_INVALID = "LEDGER_ENTRY_TYPE_INVALID";
+
+    private static final long INFRA_ID = 1L;
+    private static final long INFRA_VERSION = 0L;
+    private static final String INFRA_TENANT = "tenant-1";
+
+    @Nested
+    @DisplayName("构造期 self-validate 校验 | Constructor self-validation")
+    class ConstructionValidation {
+
         /**
          * 场景：amount = 0 违反正数约束，应抛 LEDGER_AMOUNT_INVALID。
          * Scenario: amount = 0 violates the positive-amount invariant and must throw LEDGER_AMOUNT_INVALID.
          */
-        BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
-                "USER_AVAILABLE",
-                LedgerEntryTypeEnum.DEBIT,
-                BigDecimal.ZERO,
-                12345L,
-                null,
-                null,
-                null));
-        assertEquals("LEDGER_AMOUNT_INVALID", ex.getErrorCode());
-    }
+        @Test
+        @DisplayName("amount=0 抛 LEDGER_AMOUNT_INVALID | Zero amount throws LEDGER_AMOUNT_INVALID")
+        void construct_withZeroAmount_throwsAmountInvalid() {
+            BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
+                    ACCOUNT_USER_AVAILABLE,
+                    LedgerEntryTypeEnum.DEBIT,
+                    BigDecimal.ZERO,
+                    TEST_UID,
+                    null,
+                    null,
+                    null));
+            assertEquals(ERR_AMOUNT_INVALID, ex.getErrorCode());
+        }
 
-    @Test
-    void construct_withNegativeAmount_throwsAmountInvalid() {
         /**
          * 场景：amount = -1 违反正数约束，应抛 LEDGER_AMOUNT_INVALID。
          * Scenario: amount = -1 violates the positive-amount invariant and must throw LEDGER_AMOUNT_INVALID.
          */
-        BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
-                "USER_AVAILABLE",
-                LedgerEntryTypeEnum.DEBIT,
-                new BigDecimal("-1"),
-                12345L,
-                null,
-                null,
-                null));
-        assertEquals("LEDGER_AMOUNT_INVALID", ex.getErrorCode());
-    }
+        @Test
+        @DisplayName("amount=-1 抛 LEDGER_AMOUNT_INVALID | Negative amount throws LEDGER_AMOUNT_INVALID")
+        void construct_withNegativeAmount_throwsAmountInvalid() {
+            BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
+                    ACCOUNT_USER_AVAILABLE,
+                    LedgerEntryTypeEnum.DEBIT,
+                    AMOUNT_NEG_1,
+                    TEST_UID,
+                    null,
+                    null,
+                    null));
+            assertEquals(ERR_AMOUNT_INVALID, ex.getErrorCode());
+        }
 
-    @Test
-    void construct_withNullAmount_throwsAmountInvalid() {
         /**
          * 场景：amount = null 视为非法，应抛 LEDGER_AMOUNT_INVALID（先于 entryType/accountCode 校验）。
          * Scenario: amount = null is treated as illegal and must throw LEDGER_AMOUNT_INVALID.
          */
-        BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
-                "USER_AVAILABLE",
-                LedgerEntryTypeEnum.DEBIT,
-                null,
-                12345L,
-                null,
-                null,
-                null));
-        assertEquals("LEDGER_AMOUNT_INVALID", ex.getErrorCode());
-    }
+        @Test
+        @DisplayName("amount=null 抛 LEDGER_AMOUNT_INVALID | Null amount throws LEDGER_AMOUNT_INVALID")
+        void construct_withNullAmount_throwsAmountInvalid() {
+            BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
+                    ACCOUNT_USER_AVAILABLE,
+                    LedgerEntryTypeEnum.DEBIT,
+                    null,
+                    TEST_UID,
+                    null,
+                    null,
+                    null));
+            assertEquals(ERR_AMOUNT_INVALID, ex.getErrorCode());
+        }
 
-    @Test
-    void construct_withInvalidAccountCode_throwsAccountCodeInvalid() {
         /**
          * 场景：accountCode 不在 LedgerAccountCodeEnum 枚举集合内，应抛 LEDGER_ACCOUNT_CODE_INVALID。
          * Scenario: accountCode outside the LedgerAccountCodeEnum enum set must throw LEDGER_ACCOUNT_CODE_INVALID.
          */
-        BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
-                "BOGUS_ACCOUNT",
-                LedgerEntryTypeEnum.DEBIT,
-                new BigDecimal("100"),
-                12345L,
-                null,
-                null,
-                null));
-        assertEquals("LEDGER_ACCOUNT_CODE_INVALID", ex.getErrorCode());
-    }
+        @Test
+        @DisplayName("未知 accountCode 抛 LEDGER_ACCOUNT_CODE_INVALID | Unknown accountCode throws LEDGER_ACCOUNT_CODE_INVALID")
+        void construct_withInvalidAccountCode_throwsAccountCodeInvalid() {
+            BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
+                    ACCOUNT_BOGUS,
+                    LedgerEntryTypeEnum.DEBIT,
+                    AMOUNT_100,
+                    TEST_UID,
+                    null,
+                    null,
+                    null));
+            assertEquals(ERR_ACCOUNT_CODE_INVALID, ex.getErrorCode());
+        }
 
-    @Test
-    void construct_withNullAccountCode_throwsAccountCodeInvalid() {
         /**
          * 场景：accountCode = null 应抛 LEDGER_ACCOUNT_CODE_INVALID（最先校验）。
          * Scenario: accountCode = null must throw LEDGER_ACCOUNT_CODE_INVALID as the first check.
          */
-        BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
-                null,
-                LedgerEntryTypeEnum.DEBIT,
-                new BigDecimal("100"),
-                12345L,
-                null,
-                null,
-                null));
-        assertEquals("LEDGER_ACCOUNT_CODE_INVALID", ex.getErrorCode());
-    }
+        @Test
+        @DisplayName("accountCode=null 抛 LEDGER_ACCOUNT_CODE_INVALID | Null accountCode throws LEDGER_ACCOUNT_CODE_INVALID")
+        void construct_withNullAccountCode_throwsAccountCodeInvalid() {
+            BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
+                    null,
+                    LedgerEntryTypeEnum.DEBIT,
+                    AMOUNT_100,
+                    TEST_UID,
+                    null,
+                    null,
+                    null));
+            assertEquals(ERR_ACCOUNT_CODE_INVALID, ex.getErrorCode());
+        }
 
-    @Test
-    void construct_withNullEntryType_throwsEntryTypeInvalid() {
         /**
          * 场景：entryType = null 应抛 LEDGER_ENTRY_TYPE_INVALID。
          * Scenario: entryType = null must throw LEDGER_ENTRY_TYPE_INVALID.
          */
-        BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
-                "USER_AVAILABLE",
-                null,
-                new BigDecimal("100"),
-                12345L,
-                null,
-                null,
-                null));
-        assertEquals("LEDGER_ENTRY_TYPE_INVALID", ex.getErrorCode());
+        @Test
+        @DisplayName("entryType=null 抛 LEDGER_ENTRY_TYPE_INVALID | Null entryType throws LEDGER_ENTRY_TYPE_INVALID")
+        void construct_withNullEntryType_throwsEntryTypeInvalid() {
+            BizException ex = assertThrows(BizException.class, () -> new LedgerEntryEntity(
+                    ACCOUNT_USER_AVAILABLE,
+                    null,
+                    AMOUNT_100,
+                    TEST_UID,
+                    null,
+                    null,
+                    null));
+            assertEquals(ERR_ENTRY_TYPE_INVALID, ex.getErrorCode());
+        }
     }
 
-    @Test
-    void construct_withCreditEntryType_succeeds() {
+    @Nested
+    @DisplayName("字段透传与成功构造 | Field delegation and successful construction")
+    class FieldDelegation {
+
+        /**
+         * 场景：传入全部合法参数，应正确透传所有业务字段。
+         * Scenario: All business fields are exposed verbatim when valid args are provided.
+         */
+        @Test
+        @DisplayName("合法参数下 7 个业务字段全部透传 | All 7 business fields are exposed verbatim with valid args")
+        void construct_withValidArgs_exposesAllFields() {
+            LedgerEntryEntity entry = new LedgerEntryEntity(
+                    ACCOUNT_USER_AVAILABLE,
+                    LedgerEntryTypeEnum.DEBIT,
+                    AMOUNT_100,
+                    TEST_UID,
+                    "0xabc",
+                    AMOUNT_900,
+                    "test remark");
+
+            assertEquals(ACCOUNT_USER_AVAILABLE, entry.getAccountCode());
+            assertSame(LedgerEntryTypeEnum.DEBIT, entry.getEntryType());
+            assertEquals(AMOUNT_100, entry.getAmount());
+            assertEquals(TEST_UID, entry.getUid());
+            assertEquals("0xabc", entry.getCounterparty());
+            assertEquals(AMOUNT_900, entry.getBalanceAfter());
+            assertEquals("test remark", entry.getRemark());
+        }
+
         /**
          * 场景：CREDIT 方向 + 可选字段（uid/counterparty/balanceAfter/remark）全为 null 时应成功构造。
          * Scenario: Construction succeeds with CREDIT direction and all optional fields set to null.
          */
-        LedgerEntryEntity entry = new LedgerEntryEntity(
-                "PLATFORM_HOT",
-                LedgerEntryTypeEnum.CREDIT,
-                new BigDecimal("100"),
-                null,
-                null,
-                null,
-                null);
-        assertSame(LedgerEntryTypeEnum.CREDIT, entry.getEntryType());
-        assertNull(entry.getUid());
-        assertNotNull(entry.getAmount());
+        @Test
+        @DisplayName("CREDIT 方向 + 可选字段全 null 成功构造 | CREDIT direction with all optional fields null succeeds")
+        void construct_withCreditEntryType_succeeds() {
+            LedgerEntryEntity entry = new LedgerEntryEntity(
+                    ACCOUNT_PLATFORM_HOT,
+                    LedgerEntryTypeEnum.CREDIT,
+                    AMOUNT_100,
+                    null,
+                    null,
+                    null,
+                    null);
+            assertSame(LedgerEntryTypeEnum.CREDIT, entry.getEntryType());
+            assertNull(entry.getUid());
+            assertNotNull(entry.getAmount());
+        }
     }
 
-    @Test
-    void extendsBaseEntity_inheritsAuditFields() {
+    @Nested
+    @DisplayName("BaseEntity 继承语义 | BaseEntity inheritance")
+    class BaseEntityInheritance {
+
         /**
          * 场景：BaseEntity 的 id/version/tenantId 字段可被 set/get（基础设施字段由框架在持久化时回填）。
          * Scenario: BaseEntity id/version/tenantId fields are settable/gettable as infrastructure metadata.
          */
-        LedgerEntryEntity entry = new LedgerEntryEntity(
-                "USER_AVAILABLE",
-                LedgerEntryTypeEnum.DEBIT,
-                new BigDecimal("100"),
-                12345L,
-                null,
-                null,
-                null);
-        entry.setId(1L);
-        entry.setVersion(0L);
-        entry.setTenantId("tenant-1");
-        org.junit.jupiter.api.Assertions.assertEquals(1L, entry.getId());
-        org.junit.jupiter.api.Assertions.assertEquals(0L, entry.getVersion());
-        org.junit.jupiter.api.Assertions.assertEquals("tenant-1", entry.getTenantId());
+        @Test
+        @DisplayName("id/version/tenantId 可被 set/get | id/version/tenantId are settable/gettable")
+        void extendsBaseEntity_inheritsAuditFields() {
+            LedgerEntryEntity entry = new LedgerEntryEntity(
+                    ACCOUNT_USER_AVAILABLE,
+                    LedgerEntryTypeEnum.DEBIT,
+                    AMOUNT_100,
+                    TEST_UID,
+                    null,
+                    null,
+                    null);
+            entry.setId(INFRA_ID);
+            entry.setVersion(INFRA_VERSION);
+            entry.setTenantId(INFRA_TENANT);
+            assertEquals(INFRA_ID, entry.getId());
+            assertEquals(INFRA_VERSION, entry.getVersion());
+            assertEquals(INFRA_TENANT, entry.getTenantId());
+        }
     }
 }
