@@ -14,7 +14,7 @@
 
 ### 新增能力
 
-- **LedgerJournal 聚合根**：`LedgerJournalEntity` 作为聚合根，承载一笔业务事件的全部借贷分录 `List<LedgerEntryEntity>`。提供创建、状态转换（DRAFT → POSTED → REVERSED）、借贷平衡校验、冲销等行为。
+- **LedgerJournal 聚合根（Aggregate Root）**：`LedgerJournalEntity` 作为聚合根，承载一笔业务事件的全部借贷分录 `List<LedgerEntryEntity>`。提供创建、状态转换（DRAFT → POSTED → REVERSED）、借贷平衡校验、冲销等行为。
 - **复式记账领域模型**：每笔业务事件产生 ≥2 条分录，必须满足 `SUM(DEBIT.amount) == SUM(CREDIT.amount)`，且同一账户在同一方向上不重复。
 - **Web3 字段预埋**：在 Journal 主表预留 `chain_id` / `chain_tx_hash` / `block_number` / `token_address` / `confirmations` 字段（本期不接入 web3j 实现，但所有相关查询与索引一次到位）。
 - **Web3 端口预留**：`ChainQueryPort` 出站接口在 domain 层定义，本期仅接口、不写实现，作为后续 web3j 适配器的契约。
@@ -62,7 +62,7 @@
 
 #### 架构层
 
-- Domain 层：新增聚合 `LedgerJournal`，新增值对象 `LedgerEntry`，新增出站端口 `LedgerJournalRepo` / `LedgerEntryRepo` / `ChainQueryPort`。
+- Domain 层：新增聚合（Aggregate）`LedgerJournal`，新增值对象（Value Object）`LedgerEntry`，新增出站端口（Outbound Port）`LedgerJournalRepo` / `LedgerEntryRepo` / `ChainQueryPort`。
 - Application 层：新增 `LedgerAppService.postJournal` / `findByBizNo` 两个用例，事务边界与重试策略沿用 `AccountAppService` 的样板（REQUIRES_NEW + @Retryable + DuplicateKey → BizIdempotent）。
 - Infrastructure 层：MyBatis-Plus + MapStruct 出站适配器，零侵入既有 ORM 配置。
 - Interface 层：Spring MVC 入站适配器，REST 端点遵循 `Result<T>` 统一响应。

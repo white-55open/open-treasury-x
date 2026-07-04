@@ -7,8 +7,9 @@
 > 1. **执行**：实现该 task 标明的所有内容（代码 + 测试 + 配置）。
 > 2. **验证**：执行 task 末尾的 mvn 验证命令，必须编译成功且相关测试通过。
 > 3. **展示变更摘要**：向用户输出新增/修改文件清单（带路径）、编译/测试结果、关键设计决策与注意事项。
-> 4. **提醒人工 review**：提示用户 review 代码（目标 10 分钟内），确认无误后输入 `continue` 继续。
-> 5. **等待用户 ack**：用户输入 `continue` 后，AI 自动 `git commit`（message 中英双语，如 `feat(ledger): 添加 4 个域枚举 / feat(ledger): add 4 domain enums`），然后继续下一个 task。
+> 4. **提醒人工 review**：提示用户 review 代码（目标 10 分钟内）。
+> 5. **用户提交 git commit**：用户 review 确认无误后，手动执行 `git commit`（message 中英双语，如 `feat(ledger): 添加 4 个域枚举 / feat(ledger): add 4 domain enums`）。
+> 6. **用户确认 continue**：用户输入 `continue` 后，继续下一个 task。
 > 
 > **禁止**：跨 task 批量实现；跳过编译验证；用户未 ack 进入下一个。
 > **回滚**：任意 task 出问题，`git revert` 即可，已提交历史不被破坏。

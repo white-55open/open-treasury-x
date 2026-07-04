@@ -189,3 +189,148 @@ Journal 主表必须包含以下 Web3 链上追溯字段，允许为空：chain_
 #### 场景:不存在 ledger_account_t 表
 - **当** 任何模块尝试访问 ledger_account_t 表
 - **那么** 系统必须因表不存在而失败（本期不创建该表）
+
+## 聚合根（Aggregate Root）与聚合边界（Aggregate Boundary）
+
+### 聚合根：LedgerJournalEntity
+
+每个聚合根对应一张凭证（Journal），承载一笔业务事件的全部借贷分录。聚合根保证：借贷必平、同户同向唯一、状态机（DRAFT → POSTED → REVERSED）合法性。
+
+### 聚合边界
+
+- **LedgerJournalEntity**（聚合根）：包含 id、bizNo、bizType、postingDate、currency、status、totalAmount、description、Web3 链上字段（chainId/chainTxHash/blockNumber/tokenAddress/confirmations）、reversedBy，以及 **List\<LedgerEntryEntity\>** entries（值对象集合）
+- **LedgerEntryEntity**（不可变值对象 Value Object）：accountCode、entryType、amount、uid、counterparty、balanceAfter、remark。无独立仓储写操作——只通过 Journal 聚合根写入
+- **仓储操作限制**：`LedgerJournalRepo` 操作聚合根（save/findByBizNo/existsByBizNo/update）；`LedgerEntryRepo` 按 journalId 或 bizNo 读，批量写仅在 postJournal 事务内由 Journal 聚合根驱动
+
+### 跨聚合关系
+
+- **account 上下文**：ledger_entry_t 通过 account_code 字段关联 account 上下文的系统账户编码，不强引用 AccountEntity
+- **fundflow 上下文**：ledger_journal_t 与 fund_flow_t 通过 biz_no 关联（同一业务事件在两个上下文中各自落数据，后续通过领域事件打通）
+
+## 领域事件（Domain Event）
+
+### 应发布事件（应然）
+
+| 事件名 | 触发时机 | 载荷 |
+|--------|----------|------|
+| `JournalPosted` | `postJournal` 事务提交后 | `bizNo, bizType, totalAmount, currency, postingDate, entries, occurredAt` |
+| `JournalReversed` | `reverse(reason)` 事务提交后 | `originalBizNo, reversalBizNo, reason, occurredAt` |
+
+### 当前发布事件（实然）
+
+**无。** 本期不发布任何领域事件。`JournalPosted` / `JournalReversed` 事件在后续"应用服务编排"变更中统一引入。跨聚合一致性当前通过同步调用保证。
+
+## 错误码契约
+
+本规范所有错误码均引自 `io.github.open55.otx.common.exception.BizErrorEnum`，规范不复制枚举值清单（单一事实源在代码）。下表给出每个业务错误码在本上下文中的触发场景。
+
+| 业务错误码 | 在本上下文的触发场景 |
+|------------|----------------------|
+| `LEDGER_ENTRIES_EMPTY` | entries 为空数组或缺少 DEBIT/CREDIT |
+| `LEDGER_NOT_BALANCED` | Σ DEBIT ≠ Σ CREDIT |
+| `LEDGER_DUPLICATE_ACCOUNT` | 同 accountCode 同 entryType 重复 |
+| `LEDGER_BIZ_NO_EMPTY` | bizNo 为 null 或空字符串 |
+| `LEDGER_CURRENCY_EMPTY` | currency 为 null 或空字符串 |
+| `LEDGER_AMOUNT_INVALID` | amount ≤ 0 |
+| `LEDGER_ENTRY_TYPE_INVALID` | entryType 不在 DEBIT/CREDIT 集合内 |
+| `LEDGER_ACCOUNT_CODE_INVALID` | accountCode 不在 LedgerAccountCodeEnum 集合内 |
+| `LEDGER_JOURNAL_NOT_FOUND` | findByBizNo 查不到对应 Journal |
+| `LEDGER_JOURNAL_NOT_DRAFT` | 非 DRAFT 状态调用 post() |
+| `LEDGER_JOURNAL_NOT_POSTED` | 非 POSTED 状态调用 reverse() |
+| `LEDGER_REVERSAL_NOT_FOUND` | 反向 Journal 关联缺失 |
+
+## 入站端口（Inbound Port）接口契约
+
+```java
+public interface LedgerAppService {
+    JournalDetailResponse postJournal(PostJournalRequest req);
+    JournalDetailResponse findByBizNo(String bizNo);
+}
+```
+
+### 入站 DTO
+
+```java
+public class PostJournalRequest {
+    private String bizNo;              // 业务幂等键
+    private String bizType;            // LedgerBizTypeEnum
+    private String currency;           // 币种
+    private LocalDate postingDate;     // 记账日期
+    private String description;        // 描述（可选）
+    private String chainId;            // 链 ID（可选）
+    private String chainTxHash;        // 链上交易哈希（可选）
+    private Long blockNumber;          // 区块高度（可选）
+    private String tokenAddress;       // 代币地址（可选）
+    private List<LedgerEntrySpec> entries;
+}
+
+public class LedgerEntrySpec {
+    private String accountCode;        // LedgerAccountCodeEnum
+    private String entryType;          // DEBIT / CREDIT
+    private BigDecimal amount;         // 正数金额
+    private Long uid;                  // 用户 ID（可选，用户账户时填写）
+    private String counterparty;       // 对手方（可选）
+    private BigDecimal balanceAfter;   // 余额后（可选）
+    private String remark;             // 备注（可选）
+}
+```
+
+### 出站 DTO
+
+```java
+public class JournalDetailResponse {
+    private Long id;
+    private String bizNo;
+    private String bizType;
+    private String currency;
+    private String status;
+    private BigDecimal totalAmount;
+    private LocalDate postingDate;
+    private String description;
+    private String chainId;
+    private String chainTxHash;
+    private Long blockNumber;
+    private String tokenAddress;
+    private Integer confirmations;
+    private LocalDateTime createdAt;
+    private List<LedgerEntryResponse> entries;
+}
+
+public class LedgerEntryResponse {
+    private String accountCode;
+    private String entryType;
+    private BigDecimal amount;
+    private Long uid;
+    private String counterparty;
+    private BigDecimal balanceAfter;
+    private String remark;
+}
+```
+
+## 出站端口（Outbound Port）接口契约
+
+```java
+public interface LedgerJournalRepo {
+    void save(LedgerJournalEntity journal);
+    Optional<LedgerJournalEntity> findByBizNo(String bizNo);
+    boolean existsByBizNo(String bizNo);
+    void update(LedgerJournalEntity journal);
+}
+
+public interface LedgerEntryRepo {
+    void saveBatch(List<LedgerEntryEntity> entries);
+    List<LedgerEntryEntity> findByJournalId(Long journalId);
+    List<LedgerEntryEntity> findByBizNo(String bizNo);
+}
+```
+
+仓储必须只接受/返回 `LedgerJournalEntity` 聚合根（`LedgerJournalRepo`）和 `LedgerEntryEntity` 值对象（`LedgerEntryRepo`），不得接受/返回 PO。
+
+```java
+// Web3 端口预留（本期不实现）
+public interface ChainQueryPort {
+    Optional<ChainTxReceipt> queryTxReceipt(String chainId, String txHash);
+    Long currentBlockNumber(String chainId);
+    boolean isConfirmed(String chainId, String txHash, int requiredConfirmations);
+}
+```

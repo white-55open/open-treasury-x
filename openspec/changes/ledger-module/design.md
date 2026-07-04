@@ -2,7 +2,7 @@
 
 ## 上下文
 
-Open Treasury X（OTX）是一个开源的 Web3 资金管理中间件。当前代码库已沉淀 account / fundflow / deposit / withdraw 等模块，但 Ledger 模块仅有半成品的 `LedgerEntryEntity` 和预建的 `ledger_entry_t` 表。`V2__ledger.sql` 的 `biz_no + account_code + entry_type` 联合唯一索引是天然的双分录 + 幂等键组合，但表结构与表名都不能直接承载"Journal 做聚合根"的企业级总账语义。
+Open Treasury X（OTX）是一个开源的 Web3 资金管理中间件。当前代码库已沉淀 account / fundflow / deposit / withdraw 等模块，但 Ledger 模块仅有半成品的 `LedgerEntryEntity` 和预建的 `ledger_entry_t` 表。`V2__ledger.sql` 的 `biz_no + account_code + entry_type` 联合唯一索引是天然的双分录 + 幂等键组合，但表结构与表名都不能直接承载"Journal 做聚合根（Aggregate Root）"的企业级总账语义。
 
 OTX 的架构约束：DDD + 六边形 + 多模块，domain 零框架，仓储只操作聚合根，应用服务管事务，跨聚合用事件。
 
@@ -12,11 +12,11 @@ OTX 的架构约束：DDD + 六边形 + 多模块，domain 零框架，仓储只
 
 **目标：**
 
-- 建立以 `LedgerJournal` 为聚合根、`LedgerEntry` 为不可变值对象的总账领域模型。
+- 建立以 `LedgerJournal` 为聚合根（Aggregate Root）、`LedgerEntry` 为不可变值对象（Value Object）的总账领域模型。
 - 实现复式记账不变量（借贷必平 + 至少各一 + 同户单向唯一）。
 - 提供幂等的过账（postJournal）用例与按业务号查询（findByBizNo）用例。
 - 在数据库层用联合唯一索引保证幂等性，在应用层用事务 + 重试保证并发安全。
-- 在 Journal 主表预留 Web3 链上追溯字段，并在 domain 层定义 `ChainQueryPort` 出站端口供后续 web3j 适配器实现。
+- 在 Journal 主表预留 Web3 链上追溯字段，并在 domain 层定义 `ChainQueryPort` 出站端口（Outbound Port）供后续 web3j 适配器实现。
 - 保持与既有 account / fundflow 模块的弱依赖，不破坏现有行为。
 
 **非目标：**
@@ -125,13 +125,14 @@ public interface ChainQueryPort {
 
 **返回值 `Optional`**：表示"链上查不到"（txHash 错误或链未同步），业务上区别于"查到但失败"。
 
-### 决策 9：Entry 不可变（值对象）
+### 决策 9：Entry 不可变值对象（继承 BaseEntity）
 
 **理由**：
 
 - 借贷平衡校验在 Journal 创建时一次性完成，事后修改 Entry 等于绕过校验。
 - POSTED 后所有 Entry 不可改（只能通过 reverse 产生新 Journal），符合审计要求。
 - Entry 字段全部 final，构造时 self-validate（amount > 0、accountCode 非空、entryType 合法）。
+- **BaseEntity 继承**：作为持久化的值对象，`LedgerEntryEntity` 必须继承 `BaseEntity`（id / version / 审计字段 / tenantId），与项目架构规则一致。业务字段保持 final 不可变（`@Data` + `@EqualsAndHashCode(callSuper = true)` 注解风格），`BaseEntity` 的审计/version 字段由框架在持久化时回填，不破坏值对象的不可变语义。
 
 ### 决策 10：错误码扩展 = 追加 12 个到 `BizErrorEnum`
 
@@ -162,7 +163,7 @@ public interface ChainQueryPort {
 | 状态机被外部绕过 | 直接 setStatus 破坏不变量 | 状态字段 setStatus 私有化（包内可见但文档化禁止外部调用），状态转换只走 post/reverse 方法 |
 | Entry 误改 | POSTED 后被修改，审计失效 | Entry 字段 final；Entity 暴露的 setter 全部删除；构造后无法修改 |
 | Web3 端口粒度过粗/过细 | 影响后续适配器实现成本 | T09 单独 task 评审接口粒度；如不合适可调整但不影响本期功能 |
-| 跨聚合一致性 | Journal 与 Account 余额的一致性 | 本期不强约束——Account 走原 `changeAmountWithFundFlow` 路径，Journal 独立过账；后续"业务编排"阶段用领域事件打通 |
+| 跨聚合一致性 | Journal 与 Account 余额的一致性——本期采用**最终一致性**策略 | Account 走原 `changeAmountWithFundFlow` 路径，Journal 独立过账，两者通过 `biz_no` 关联；不保证同一事务内两者同时写入。后续"业务编排"阶段用领域事件（`JournalPosted`）实现最终一致 |
 | 反向 Journal 的链上关联 | reverse 操作的链上回滚语义不清 | 反向 Journal 共享原 Journal 的 chain_tx_hash 字段；增加 `reversed_by` 字段记录反向 Journal 自身的 bizNo |
 
 ## 数据库 schema 变更
