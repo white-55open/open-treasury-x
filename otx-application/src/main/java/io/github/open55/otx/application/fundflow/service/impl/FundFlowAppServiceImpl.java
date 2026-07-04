@@ -11,11 +11,21 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/**
+ * 资金流水应用服务实现。
+ * <p>
+ * 负责创建资金流水记录（含雪花 ID 生成）以及流水查询与幂等校验。
+ */
 @Service
 @RequiredArgsConstructor
 public class FundFlowAppServiceImpl implements FundFlowAppService {
     private final FundFlowRepo repository;
 
+    /**
+     * 记录一笔资金流水，使用雪花算法生成唯一流水号。
+     *
+     * @param input 资金流水请求，必须包含 uid、bizNo、金额及余额快照
+     */
     @Override
     public void record(CreateFundFlowRequest input) {
         Assert.notNull(input);
@@ -41,12 +51,24 @@ public class FundFlowAppServiceImpl implements FundFlowAppService {
         repository.save(flow);
     }
 
+    /**
+     * 按业务流水号检查流水是否存在（幂等校验）。
+     *
+     * @param bizNo 业务流水号
+     * @return 存在返回 true
+     */
     @Override
     public boolean existsBizNo(String bizNo) {
         Assert.notBlank(bizNo);
         return repository.existsByBizNo(bizNo);
     }
 
+    /**
+     * 按用户标识查询所有资金流水。
+     *
+     * @param uid 用户唯一标识
+     * @return 资金流水列表
+     */
     @Override
     public List<FundFlowEntity> findByUid(Long uid) {
         Assert.notNull(uid);

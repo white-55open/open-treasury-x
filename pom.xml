@@ -50,6 +50,7 @@
         <mybatis.version>4.0.1</mybatis.version>
         <vertx.version>5.0.7</vertx.version>
         <hutool.version>5.8.40</hutool.version>
+        <byte-buddy.version>1.17.8</byte-buddy.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -175,6 +176,14 @@
 
     <build>
         <plugins>
+            <!-- 预加载 Byte Buddy Agent，消除 Mockito 动态注入的 JDK 警告 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Xshare:off -javaagent:${settings.localRepository}/net/bytebuddy/byte-buddy-agent/${byte-buddy.version}/byte-buddy-agent-${byte-buddy.version}.jar</argLine>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
