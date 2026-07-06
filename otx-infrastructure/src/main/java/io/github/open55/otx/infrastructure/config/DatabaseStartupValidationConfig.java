@@ -9,9 +9,20 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * 数据库启动校验配置。
+ * <p>
+ * 应用启动时验证数据库连接是否可用，连接失败则抛出异常阻止启动。
+ */
 @Configuration
 public class DatabaseStartupValidationConfig {
 
+    /**
+     * 注册启动校验器，在应用启动完成后立即验证数据库连接。
+     *
+     * @param dataSource 数据源
+     * @return 启动校验器
+     */
     @Bean
     public SmartInitializingSingleton databaseStartupValidator(DataSource dataSource) {
         return () -> {
