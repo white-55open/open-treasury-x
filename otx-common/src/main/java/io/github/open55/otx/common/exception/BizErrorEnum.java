@@ -67,7 +67,12 @@ public enum BizErrorEnum {
     /**
      * 反向冲销凭证关联的原凭证找不到，reversal 链路缺失
      */
-    LEDGER_REVERSAL_NOT_FOUND("LEDGER_REVERSAL_NOT_FOUND", "Ledger reversal journal not found.");
+    LEDGER_REVERSAL_NOT_FOUND("LEDGER_REVERSAL_NOT_FOUND", "Ledger reversal journal not found."),
+
+    /**
+     * 请求的链 ID 未在 web3j 配置中注册，无法发起 RPC 查询
+     */
+    LEDGER_CHAIN_NOT_CONFIGURED("LEDGER_CHAIN_NOT_CONFIGURED", "The requested chain is not configured.");
 
     private final String code;
 
