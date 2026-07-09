@@ -291,6 +291,15 @@ rules:
     - 按限界上下文组织在 specs/<bounded-context>/spec.md 下
     - 每个规范定义行为、不变量和验收标准
     - 明确每个限界上下文的聚合根、聚合边界和领域事件
+  logging:
+    - 日志消息（log.info/warn/error/debug 的字符串内容）必须使用英文编写
+    - 每条日志语句上方必须添加一行中文注释，说明该日志的触发场景和含义
+    - 格式示例：
+      ```java
+      // 总账过账失败，记录错误信息供排查
+      log.warn("Journal posting failed, bizNo={}", bizNo, e);
+      ```
+    - 使用 `@Slf4j` 注解声明 log 对象，禁止手动声明 Logger
   test:
     - 所有 test.java 文件必须包含测试意图注释：Test 类 Javadoc（中文，说明被测对象与覆盖范围），每个 @Test 方法 Javadoc（中文，描述场景的业务含义与预期结果）
     - 测试方法名采用 snake_case 业务命名（如 `construct_withInvalidAccountCode_throwsAccountCodeInvalid`），做到"读名知意"

@@ -35,6 +35,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception ex) {
+        // 未捕获的服务器内部异常，记录完整堆栈供排查
         log.error(WarningWordConstant.SERVER_ERROR, ex);
         return Result.fail(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()), HttpStatus.INTERNAL_SERVER_ERROR.toString(), null);
     }

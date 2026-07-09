@@ -30,4 +30,9 @@ public class ChangeAmountRequest {
      * 资金流水类型（DEPOSIT 或 WITHDRAW）
      */
     private FundFlowTypeEnum fundFlowType;
+
+    /**
+     * 币种，如 USDT、ETH，过账时填充凭证币种
+     */
+    private String currency;
 }

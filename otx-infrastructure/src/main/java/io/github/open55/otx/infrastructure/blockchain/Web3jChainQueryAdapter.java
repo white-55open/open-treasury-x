@@ -40,7 +40,8 @@ public class Web3jChainQueryAdapter implements ChainQueryPort {
         for (String url : properties.getRpcUrls()) {
             Web3j web3j = web3jPool.get(url);
             if (web3j == null) {
-                log.warn("RPC URL 在池中不存在，跳过: {}", url);
+                // RPC URL 在连接池中不存在，跳过该节点
+                log.warn("RPC URL not found in pool, skipping: {}", url);
                 failedUrls.add(url);
                 continue;
             }
@@ -61,10 +62,12 @@ public class Web3jChainQueryAdapter implements ChainQueryPort {
                         receipt.getTo(),
                         receipt.getCumulativeGasUsed()
                 );
-                log.debug("queryTxReceipt 成功，txHash={}, url={}", txHash, url);
+                // queryTxReceipt 调用成功，记录交易哈希和使用的 RPC URL
+                log.debug("queryTxReceipt succeeded, txHash={}, url={}", txHash, url);
                 return Optional.of(result);
             } catch (Exception e) {
-                log.warn("RPC 节点不可用，切换到下一节点，url={}, error={}", url, e.getMessage());
+                // 当前 RPC 节点不可用，尝试切换到下一个节点
+                log.warn("RPC node unavailable, switching to next, url={}, error={}", url, e.getMessage());
                 failedUrls.add(url);
             }
         }
@@ -79,16 +82,19 @@ public class Web3jChainQueryAdapter implements ChainQueryPort {
         for (String url : properties.getRpcUrls()) {
             Web3j web3j = web3jPool.get(url);
             if (web3j == null) {
-                log.warn("RPC URL 在池中不存在，跳过: {}", url);
+                // RPC URL 在连接池中不存在，跳过该节点
+                log.warn("RPC URL not found in pool, skipping: {}", url);
                 failedUrls.add(url);
                 continue;
             }
             try {
                 EthBlockNumber blockNumber = web3j.ethBlockNumber().send();
-                log.debug("currentBlockNumber 成功，blockNumber={}, url={}", blockNumber.getBlockNumber(), url);
+                // currentBlockNumber 调用成功，记录当前块高和使用的 RPC URL
+                log.debug("currentBlockNumber succeeded, blockNumber={}, url={}", blockNumber.getBlockNumber(), url);
                 return blockNumber.getBlockNumber().longValue();
             } catch (Exception e) {
-                log.warn("RPC 节点不可用，切换到下一节点，url={}, error={}", url, e.getMessage());
+                // 当前 RPC 节点不可用，尝试切换到下一个节点
+                log.warn("RPC node unavailable, switching to next, url={}, error={}", url, e.getMessage());
                 failedUrls.add(url);
             }
         }

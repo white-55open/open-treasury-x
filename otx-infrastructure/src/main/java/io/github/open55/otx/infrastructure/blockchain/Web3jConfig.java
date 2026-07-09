@@ -48,10 +48,12 @@ public class Web3jConfig {
                     .build();
             Web3j web3j = Web3j.build(new HttpService(url, okHttpClient));
             pool.put(url, web3j);
-            log.info("Web3j 客户端已创建，RPC URL: {}", url);
+            // Web3j 客户端创建成功，记录对应的 RPC URL
+            log.info("Web3j client created, RPC URL: {}", url);
         }
         if (pool.isEmpty()) {
-            log.warn("未配置任何 RPC URL，web3j 客户端池为空");
+            // 未配置 RPC URL，客户端池为空，后续链上调用将全部失败
+            log.warn("No RPC URLs configured, web3j client pool is empty");
         }
         this.pool = pool;
         return pool;
@@ -68,9 +70,11 @@ public class Web3jConfig {
         for (Map.Entry<String, Web3j> entry : pool.entrySet()) {
             try {
                 entry.getValue().shutdown();
-                log.info("Web3j 客户端已关闭，RPC URL: {}", entry.getKey());
+                // Web3j 客户端优雅关闭，释放连接池和线程资源
+                log.info("Web3j client shut down, RPC URL: {}", entry.getKey());
             } catch (Exception e) {
-                log.error("Web3j 客户端关闭失败，RPC URL: {}", entry.getKey(), e);
+                // Web3j 客户端关闭失败，记录异常但不影响其他客户端关闭
+                log.error("Web3j client shutdown failed, RPC URL: {}", entry.getKey(), e);
             }
         }
     }
