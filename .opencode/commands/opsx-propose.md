@@ -1,106 +1,115 @@
 ---
-description: 提案新变更 - 一步创建并生成所有产出物
+description: "Propose a new change - create it and generate all artifacts in one step"
 ---
 
-提案新变更 - 一步创建变更并生成所有产出物。
+Propose a new change - create the change and generate all artifacts in one step.
 
-我将创建一个包含以下产出物的变更：
-- proposal.md（什么和为什么）
-- design.md（实现方式）
-- tasks.md（实现步骤）
+I'll create a change with the artifacts your schema defines. With the default spec-driven schema that is:
+- proposal.md (what & why)
+- `specs/<capability>/spec.md` (what the system must do - a delta, not the main spec)
+- design.md (how)
+- tasks.md (implementation steps)
 
-准备好实现后，运行 /opsx-apply
+When ready to implement, run /opsx-apply
 
 ---
 
-**规则来源**：必须严格参考 `openspec/config.yaml` 中 `rules` 定义的所有规则。
+**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `view`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
 
-**输入**：`/opsx-propose` 之后的参数是变更名称（kebab-case），或用户想要构建内容的描述。
+**Input**: The argument after `/opsx-propose` is the change name (kebab-case), OR a description of what the user wants to build.
 
-**步骤**
+**Steps**
 
-1. **如果没有提供输入，询问他们想要构建什么**
+1. **If no input provided, ask what they want to build**
 
-   使用 **AskUserQuestion tool**（开放式，无预设选项）询问：
-   > "您想要处理什么变更？请描述您想要构建或修复的内容。"
+   Ask the user (open-ended, no preset options):
+   > "What change do you want to work on? Describe what you want to build or fix."
 
-   根据他们的描述，推导出一个 kebab-case 名称（例如："add user authentication" → `add-user-auth`）。
+   From their description, derive a kebab-case name (e.g., "add user authentication" → `add-user-auth`).
 
-   **重要提示**：在不了解用户想要构建什么的情况下，请勿继续。
+   **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **创建变更目录**
+2. **Create the change directory**
    ```bash
-   openspec-cn new change "<name>"
+   openspec new change "<name>"
    ```
-   这将在 CLI 解析的规划主目录中创建一个带有 `.openspec.yaml` 的脚手架变更。
+   This creates a scaffolded change in the planning home resolved by the CLI with `.openspec.yaml`.
 
-3. **获取产出物构建顺序**
+3. **Get the artifact build order**
    ```bash
-   openspec-cn status --change "<name>" --json
+   openspec status --change "<name>" --json
    ```
-   解析 JSON 以获取：
-   - `applyRequires`: 实现前所需的产出物 ID 数组（例如：`["tasks"]`）
-   - `artifacts`: 所有产出物及其状态和依赖项的列表
-   - `planningHome`、`changeRoot`、`artifactPaths` 和 `actionContext`：路径和范围上下文。使用这些而不是假设仓库本地路径。
+   Parse the JSON to get:
+   - `applyRequires`: array of artifact IDs needed before implementation (e.g., `["tasks"]`)
+   - `artifacts`: list of all artifacts, each with its `status` and its `requires` edges (the artifact IDs it directly depends on)
+   - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context. Use these instead of assuming repo-local paths.
 
-4. **按顺序创建产出物直到准备好应用**
+4. **Create every artifact in the required set**
 
-   使用 **TodoWrite tool** 跟踪产出物的进度。
+   Use a todo list to track progress through the artifacts.
 
-   按依赖顺序循环遍历产出物（没有待处理依赖项的产出物优先）：
+   Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
-   a. **对于每个 `ready`（依赖项已满足）的产出物**：
-      - 获取指令：
+   a. **For each artifact that is `ready` (dependencies satisfied)**:
+      - Get instructions:
         ```bash
-        openspec-cn instructions <artifact-id> --change "<name>" --json
+        openspec instructions <artifact-id> --change "<name>" --json
         ```
-      - 指令 JSON 包括：
-        - `context`：项目背景（对你的约束 - 不要包含在输出中）
-        - `rules`：产出物特定规则（对你的约束 - 不要包含在输出中）
-        - `template`：用于输出文件的结构
-        - `instruction`：此产出物类型的 Schema 特定指导
-        - `resolvedOutputPath`：已解析的写入产出物的路径或模式
-        - `dependencies`：已完成的产出物，用于读取上下文
-      - 读取任何已完成的依赖文件以获取上下文
-      - 使用 `template` 作为结构创建产出物文件，写入 `resolvedOutputPath`
-      - 应用 `context` 和 `rules` 作为约束 - 但不要将它们复制到文件中
-      - 显示简短进度："✓ 已创建 <artifact-id>"
+      - The instructions JSON includes:
+        - `context`: Project background (constraints for you - do NOT include in output)
+        - `rules`: Artifact-specific rules (constraints for you - do NOT include in output)
+        - `template`: The structure to use for your output file
+        - `instruction`: Schema-specific guidance for this artifact type
+        - `skipped`/`warning`: present when the change declares skip_specs and this artifact must NOT be created - stop and pick another artifact
+        - `resolvedOutputPath`: Resolved path or pattern to write the artifact
+        - `dependencies`: Completed artifacts to read for context
+      - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
+      - If the `instruction` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at `resolvedOutputPath`
+      - Otherwise create the artifact file using `template` as the structure and write it to `resolvedOutputPath`. If `resolvedOutputPath` is a glob, follow `instruction` to choose the concrete file path
+      - Apply `context` and `rules` as constraints - but do NOT copy them into the file
+      - Show brief progress: "Created <artifact-id>"
 
-   b. **继续直到所有 `applyRequires` 产出物完成**
-      - 创建每个产出物后，重新运行 `openspec-cn status --change "<name>" --json`
-      - 检查 `applyRequires` 中的每个产出物 ID 在 artifacts 数组中是否具有 `status: "done"`
-      - 当所有 `applyRequires` 产出物完成时停止
+   b. **Continue until every artifact in the required set exists (not just `apply.requires`)**
+      - After creating each artifact, re-run `openspec status --change "<name>" --json`
+      - The required set is `applyRequires` plus every artifact reachable from those by following the `requires` edges in `status --json` - walk them transitively (spec-driven closes over proposal, specs, design, tasks). Leave artifacts outside that set alone
+      - `status` is file-existence only, so an `applyRequires` artifact reading `done` does NOT mean its dependencies exist - writing `tasks.md` early marks `tasks` done while `specs` was never written. Use each artifact's `requires` edges, not its `status`, to build the required set: a `done` artifact still lists what it depends on
+      - An artifact already reading `status: "skipped"` is satisfied: the change declares `skip_specs` in `.openspec.yaml`, so its files must NOT exist. Never try to create one
+      - Create every artifact in the required set that is missing, then re-check - creating one can unblock others
+      - Skip one only when `status` already reports it `skipped`, or when its own `instruction` says it is conditional: run `openspec instructions <artifact-id> --change "<name>" --json` and skip only if its `instruction` field marks it optional (e.g. "create only if..."). Spec-driven's `design.md` qualifies; `specs` qualifies only via the `skipped` status above, never by your own judgment. Tell the user, and do not reconsider it
+      - Dependencies are enablers, not gates: if a required artifact is still `blocked` only because you skipped a conditional dependency, write it anyway
+      - Stop when every artifact in the required set is `done`, `skipped`, or was deliberately skipped
 
-   c. **如果产出物需要用户输入**（上下文不清楚）：
-      - 使用 **AskUserQuestion tool** 进行澄清
-      - 然后继续创建
+   c. **If an artifact requires user input** (unclear context):
+      - Ask the user to clarify
+      - Then continue with creation
 
-5. **显示最终状态**
+5. **Show final status**
    ```bash
-   openspec-cn status --change "<name>"
+   openspec status --change "<name>"
    ```
 
-**输出**
+**Output**
 
-完成所有产出物后，总结：
-- 变更名称和位置
-- 已创建产出物的列表及简要描述
-- 准备就绪："所有产出物已创建！准备好实现。"
-- 提示："运行 `/opsx-apply` 开始实现。"
+After completing all artifacts, summarize:
+- Change name and location
+- List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
+- What's ready: "All artifacts needed for implementation are ready."
+- Prompt: "Run `/opsx-apply` to start implementing."
 
-**产出物创建指南**
+**Artifact Creation Guidelines**
 
-- 遵循每个产出物类型的 `openspec-cn instructions` 中的 `instruction` 字段
-- Schema 定义了每个产出物应包含的内容，遵循它
-- 在创建新产出物之前阅读依赖产出物以获取上下文
-- 使用 `template` 作为输出文件的结构 - 填充其各个部分
-- **重要提示**：`context` 和 `rules` 是对你的约束，而不是文件内容
-  - 不要将 `<context>`、`<rules>`、`<project_context>` 块复制到产出物中
-  - 这些引导你编写内容，但不应出现在输出中
+- Follow the `instruction` field from `openspec instructions` for each artifact type - it is the authoritative guidance, even for familiar artifact names
+- If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly
+- The schema defines what each artifact should contain - follow it
+- Read dependency artifacts for context before creating new ones
+- Use `template` as the structure for your output file - fill in its sections
+- **IMPORTANT**: `context` and `rules` are constraints for YOU, not content for the file
+  - Do NOT copy `<context>`, `<rules>`, `<project_context>` blocks into the artifact
+  - These guide what you write, but should never appear in the output
 
-**护栏**
-- 创建实现所需的所有产出物（由 Schema 的 `apply.requires` 定义）
-- 在创建新产出物之前始终阅读依赖产出物
-- 如果上下文极其不清楚，询问用户 - 但倾向于做出合理的决定以保持势头
-- 如果同名变更已存在，询问用户是否要继续它或创建一个新的
-- 在继续下一个之前，验证写入后每个产出物文件是否存在
+**Guardrails**
+- Create every artifact the apply phase transitively depends on, not just the ids listed in `apply.requires`
+- Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
+- If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
+- If a change with that name already exists, ask if user wants to continue it or create a new one
+- Verify each artifact file exists after writing before proceeding to next
