@@ -248,6 +248,24 @@ class Web3jChainQueryAdapterTest {
 
             assertFalse(result);
         }
+
+        /**
+         * 链上交易失败（回执状态非 0x1，如 revert）时返回 false，
+         * 防止已确认的失败交易通过确认闸门伪造入账。
+         */
+        @Test
+        @DisplayName("交易失败（回执 0x0）返回 false | failed transaction receipt returns false")
+        void isConfirmed_whenTxFailed_returnsFalse() throws Exception {
+            TransactionReceipt receipt = mockReceipt(TX_HASH, BigInteger.valueOf(100));
+            when(receipt.getStatus()).thenReturn("0x0");
+            EthGetTransactionReceipt txResponse = mock(EthGetTransactionReceipt.class);
+            when(txResponse.getTransactionReceipt()).thenReturn(Optional.of(receipt));
+            doReturn(mockRequest(txResponse)).when(web3jNode1).ethGetTransactionReceipt(TX_HASH);
+
+            boolean result = adapter.isConfirmed(CHAIN_ID, TX_HASH, 12);
+
+            assertFalse(result);
+        }
     }
 
     private static TransactionReceipt mockReceipt(String txHash, BigInteger blockNumber) {

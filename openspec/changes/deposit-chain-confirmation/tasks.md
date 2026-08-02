@@ -1,53 +1,37 @@
-# 充值入账前链上确认检查（deposit-chain-confirmation）任务清单
+﻿# 鍏呭€煎叆璐﹀墠閾句笂纭妫€鏌ワ紙deposit-chain-confirmation锛変换鍔℃竻鍗?
+## 1. common锛氭柊澧炰笟鍔￠敊璇爜
 
-## 1. common：新增业务错误码
+- [x] 1.1 鍦?`otx-common` 鐨?`BizErrorEnum` 鏈熬鏂板 3 涓敊璇爜锛堟瘡涓甫涓枃 Javadoc 璇存槑瑙﹀彂鍦烘櫙锛夛細`DEPOSIT_CHAIN_INFO_MISS`锛坈hainId/chainTxHash 缂哄け鎴?requiredConfirmations 闈炴硶锛夈€乣DEPOSIT_TX_NOT_CONFIRMED`锛堥摼涓婁氦鏄撴湭杈剧‘璁ゆ暟锛夈€乣DEPOSIT_CHAIN_QUERY_FAILED`锛堥摼涓婃煡璇㈠け璐ワ級
+  - **娴嬭瘯瑕佹眰**锛氭柊澧?鎵╁睍 `BizErrorEnumTest`鈥斺€擿errorEnum_declaresDepositChainErrorCodes_withUniqueCode` 鏂█ 3 涓柊鏋氫妇瀛樺湪涓?code 涓庢灇涓惧悕涓€鑷淬€佸叏灞€鏃犻噸澶?code锛沗get_unknownCode_returnsNull` 淇濇寔鏃㈡湁鏂█涓嶅洖褰?  - **楠屾敹**锛歚mvnw.cmd -pl otx-common test` 閫氳繃
 
-- [ ] 1.1 在 `otx-common` 的 `BizErrorEnum` 末尾新增 3 个错误码（每个带中文 Javadoc 说明触发场景）：`DEPOSIT_CHAIN_INFO_MISS`（chainId/chainTxHash 缺失或 requiredConfirmations 非法）、`DEPOSIT_TX_NOT_CONFIRMED`（链上交易未达确认数）、`DEPOSIT_CHAIN_QUERY_FAILED`（链上查询失败）
-  - **测试要求**：新增/扩展 `BizErrorEnumTest`——`errorEnum_declaresDepositChainErrorCodes_withUniqueCode` 断言 3 个新枚举存在且 code 与枚举名一致、全局无重复 code；`get_unknownCode_returnsNull` 保持既有断言不回归
-  - **验收**：`mvnw.cmd -pl otx-common test` 通过
+## 2. application锛氭柊澧?DepositRequestDTO
 
-## 2. application：新增 DepositRequestDTO
+- [x] 2.1 鏂板缓 `io.github.open55.otx.application.deposit.dto.DepositRequestDTO extends ChangeAmountRequest`锛屾柊澧炲瓧娈碉細`chainId`锛圫tring锛屽繀濉級銆乣chainTxHash`锛圫tring锛屽繀濉級銆乣requiredConfirmations`锛圛nteger锛屽彲閫夛級銆乣tokenAddress`锛圫tring锛屽彲閫夛級锛涙墍鏈夊瓧娈典娇鐢ㄤ腑鏂囧琛?Javadoc锛堥伒瀹?config.yaml documentation 閾佸緥锛?  - **娴嬭瘯瑕佹眰**锛氭柊澧?`DepositRequestDTOTest`鈥斺€擿depositRequestDTO_inheritsChangeAmountFields_andCarriesChainFields` 鏂█缁ф壙瀛楁锛坲id/amount/bizNo/currency锛夐€忎紶姝ｅ父涓旈摼瀛楁鍙鍐?  - **楠屾敹**锛歚mvnw.cmd -pl otx-application -am test -Dtest=DepositRequestDTOTest` 閫氳繃
 
-- [ ] 2.1 新建 `io.github.open55.otx.application.deposit.dto.DepositRequestDTO extends ChangeAmountRequest`，新增字段：`chainId`（String，必填）、`chainTxHash`（String，必填）、`requiredConfirmations`（Integer，可选）、`tokenAddress`（String，可选）；所有字段使用中文多行 Javadoc（遵守 config.yaml documentation 铁律）
-  - **测试要求**：新增 `DepositRequestDTOTest`——`depositRequestDTO_inheritsChangeAmountFields_andCarriesChainFields` 断言继承字段（uid/amount/bizNo/currency）透传正常且链字段可读写
-  - **验收**：`mvnw.cmd -pl otx-application -am test -Dtest=DepositRequestDTOTest` 通过
+## 3. application锛氱‘璁ら椄闂ㄧ紪鎺掞紙鏍稿績锛?
+- [x] 3.1 `DepositAppServiceImpl` 娉ㄥ叆 `ChainQueryPort`锛堟瀯閫犲櫒娉ㄥ叆锛夛紝`deposit()` 绛惧悕鏀逛负 `deposit(DepositRequestDTO request)`锛屽湪 `changeAmountWithFundFlow` 涔嬪墠鏂板绉佹湁鏂规硶 `assertChainEvidence(request)`锛坈hainId/chainTxHash 闈炵┖銆乺equiredConfirmations 涓虹┖鎴栨鏁帮紝鍚﹀垯鎶?`DEPOSIT_CHAIN_INFO_MISS`锛変笌 `assertChainConfirmed(request, chainQueryPort)`锛坮esolve 纭鏁帮細璇锋眰瑕嗙洊鍊间紭鍏堛€佸惁鍒欑敤 `Web3jProperties` 榛樿 12锛沗isConfirmed` 杩斿洖 false 鎶?`DEPOSIT_TX_NOT_CONFIRMED`锛涙崟鑾?`Web3jRpcException` 杞?`DEPOSIT_CHAIN_QUERY_FAILED`锛?  - **娴嬭瘯瑕佹眰**锛氭墿灞?`DepositAppServiceImplTest`锛宍@Nested` 鍒嗙粍銆岄摼纭闂搁棬銆嶁€斺€擿deposit_withConfirmedTx_creditsBalanceAndPostsJournal`锛坢ock isConfirmed=true锛屾柇瑷€ changeAmountWithFundFlow 涓?postJournal 琚皟鐢級锛沗deposit_withUnconfirmedTx_throwsTxNotConfirmed_andNoSideEffects`锛坢ock false锛屾柇瑷€鎶?`DEPOSIT_TX_NOT_CONFIRMED` 涓?verifyNever 璋冪敤 changeAmountWithFundFlow/postJournal锛夛紱`deposit_whenChainQueryFails_throwsChainQueryFailed`锛坢ock 鎶?Web3jRpcException锛屾柇瑷€ `DEPOSIT_CHAIN_QUERY_FAILED`锛夛紱`deposit_withMissingChainId_throwsChainInfoMiss`锛沗deposit_withMissingTxHash_throwsChainInfoMiss`锛沗deposit_withInvalidRequiredConfirmations_throwsChainInfoMiss`锛?/璐熸暟锛?  - **楠屾敹**锛歚mvnw.cmd -pl otx-application -am test -Dtest=DepositAppServiceImplTest` 閫氳繃
 
-## 3. application：确认闸门编排（核心）
+- [x] 3.2 纭鏁拌В鏋愶細`requiredConfirmations` 璇锋眰瑕嗙洊鍊间紭鍏堬紝鍚﹀垯浣跨敤閰嶇疆榛樿鍊硷紱`@Nested` 鍒嗙粍銆岀‘璁ゆ暟瑙ｆ瀽銆嶆祴璇曪細`deposit_withoutOverrideUsesDefaultConfirmations`锛堟柇瑷€ isConfirmed 鏀跺埌 12锛夈€乣deposit_withOverrideUsesRequestConfirmations`锛堟柇瑷€鏀跺埌 6锛?  - **娴嬭瘯瑕佹眰**锛氬悓涓婃墿灞?`DepositAppServiceImplTest`锛宮ock `ChainQueryPort` 鐢?ArgumentCaptor 鏂█纭鏁板弬鏁?  - **楠屾敹**锛歚mvnw.cmd -pl otx-application -am test -Dtest=DepositAppServiceImplTest` 閫氳繃
 
-- [ ] 3.1 `DepositAppServiceImpl` 注入 `ChainQueryPort`（构造器注入），`deposit()` 签名改为 `deposit(DepositRequestDTO request)`，在 `changeAmountWithFundFlow` 之前新增私有方法 `assertChainEvidence(request)`（chainId/chainTxHash 非空、requiredConfirmations 为空或正数，否则抛 `DEPOSIT_CHAIN_INFO_MISS`）与 `assertChainConfirmed(request, chainQueryPort)`（resolve 确认数：请求覆盖值优先、否则用 `Web3jProperties` 默认 12；`isConfirmed` 返回 false 抛 `DEPOSIT_TX_NOT_CONFIRMED`；捕获 `Web3jRpcException` 转 `DEPOSIT_CHAIN_QUERY_FAILED`）
-  - **测试要求**：扩展 `DepositAppServiceImplTest`，`@Nested` 分组「链确认闸门」——`deposit_withConfirmedTx_creditsBalanceAndPostsJournal`（mock isConfirmed=true，断言 changeAmountWithFundFlow 与 postJournal 被调用）；`deposit_withUnconfirmedTx_throwsTxNotConfirmed_andNoSideEffects`（mock false，断言抛 `DEPOSIT_TX_NOT_CONFIRMED` 且 verifyNever 调用 changeAmountWithFundFlow/postJournal）；`deposit_whenChainQueryFails_throwsChainQueryFailed`（mock 抛 Web3jRpcException，断言 `DEPOSIT_CHAIN_QUERY_FAILED`）；`deposit_withMissingChainId_throwsChainInfoMiss`；`deposit_withMissingTxHash_throwsChainInfoMiss`；`deposit_withInvalidRequiredConfirmations_throwsChainInfoMiss`（0/负数）
-  - **验收**：`mvnw.cmd -pl otx-application -am test -Dtest=DepositAppServiceImplTest` 通过
+- [x] 3.3 `buildDepositJournalRequest` 閾惧瓧娈靛～鍏咃細`chainId`/`chainTxHash` 鍙栬嚜璇锋眰锛涚‘璁ら€氳繃鍚庤皟鐢ㄤ竴娆?`queryTxReceipt` 鍙?`blockNumber` 濉厖鍑瘉锛堝洖鎵х己澶辨椂 blockNumber 缃?null 浠嶅厑璁稿叆璐︼紝瑙?design R3锛夛紱`tokenAddress` 鍙栬嚜璇锋眰鍙€夊瓧娈碉紱绉佹湁鏂规硶閫昏緫鍔犱腑鏂囪鍐呮敞閲?  - **娴嬭瘯瑕佹眰**锛歚@Nested` 鍒嗙粍銆屽嚟璇侀摼瀛楁銆嶁€斺€擿deposit_withConfirmedTx_journalCarriesChainEvidence`锛圓rgumentCaptor 鎹曡幏 `PostJournalRequestDTO`锛屾柇瑷€ chainId/chainTxHash 绛変簬璇锋眰鍊笺€乥lockNumber 绛変簬 mock 鍥炴墽鍊硷級锛沗deposit_whenReceiptMissing_journalKeepsNullBlockNumber`
+  - **楠屾敹**锛歚mvnw.cmd -pl otx-application -am test -Dtest=DepositAppServiceImplTest` 閫氳繃
 
-- [ ] 3.2 确认数解析：`requiredConfirmations` 请求覆盖值优先，否则使用配置默认值；`@Nested` 分组「确认数解析」测试：`deposit_withoutOverrideUsesDefaultConfirmations`（断言 isConfirmed 收到 12）、`deposit_withOverrideUsesRequestConfirmations`（断言收到 6）
-  - **测试要求**：同上扩展 `DepositAppServiceImplTest`，mock `ChainQueryPort` 用 ArgumentCaptor 断言确认数参数
-  - **验收**：`mvnw.cmd -pl otx-application -am test -Dtest=DepositAppServiceImplTest` 通过
+- [x] 3.4 骞傜瓑鍥炲綊锛氱‘璁ら椄闂ㄦ墽琛屽悗杩涘叆鏃㈡湁骞傜瓑璺緞锛沗@Nested` 鍒嗙粍銆屽箓绛夈€嶁€斺€擿deposit_withDuplicateBizNo_returnsOriginalBizNoAndNoDoubleCredit`锛坢ock isConfirmed=true銆乧hangeAmountWithFundFlow 骞傜瓑杩斿洖鍘?bizNo锛屾柇瑷€浣欓涓庢祦姘翠笉閲嶅锛?  - **娴嬭瘯瑕佹眰**锛氭墿灞?`DepositAppServiceImplTest`锛屾祴璇曟暟鎹敤 `private static final` 鍏峰悕甯搁噺锛坄TEST_UID`銆乣TEST_CHAIN_ID`銆乣TEST_TX_HASH`銆乣AMOUNT_100`銆乣DEFAULT_CONFIRMATIONS_12`锛?  - **楠屾敹**锛歚mvnw.cmd -pl otx-application -am test` 鍏ㄩ噺閫氳繃锛堝惈鏃㈡湁鐢ㄤ緥涓嶅洖褰掞級
 
-- [ ] 3.3 `buildDepositJournalRequest` 链字段填充：`chainId`/`chainTxHash` 取自请求；确认通过后调用一次 `queryTxReceipt` 取 `blockNumber` 填充凭证（回执缺失时 blockNumber 置 null 仍允许入账，见 design R3）；`tokenAddress` 取自请求可选字段；私有方法逻辑加中文行内注释
-  - **测试要求**：`@Nested` 分组「凭证链字段」——`deposit_withConfirmedTx_journalCarriesChainEvidence`（ArgumentCaptor 捕获 `PostJournalRequestDTO`，断言 chainId/chainTxHash 等于请求值、blockNumber 等于 mock 回执值）；`deposit_whenReceiptMissing_journalKeepsNullBlockNumber`
-  - **验收**：`mvnw.cmd -pl otx-application -am test -Dtest=DepositAppServiceImplTest` 通过
+## 4. interface锛氭帶鍒跺櫒濂戠害璋冩暣
 
-- [ ] 3.4 幂等回归：确认闸门执行后进入既有幂等路径；`@Nested` 分组「幂等」——`deposit_withDuplicateBizNo_returnsOriginalBizNoAndNoDoubleCredit`（mock isConfirmed=true、changeAmountWithFundFlow 幂等返回原 bizNo，断言余额与流水不重复）
-  - **测试要求**：扩展 `DepositAppServiceImplTest`，测试数据用 `private static final` 具名常量（`TEST_UID`、`TEST_CHAIN_ID`、`TEST_TX_HASH`、`AMOUNT_100`、`DEFAULT_CONFIRMATIONS_12`）
-  - **验收**：`mvnw.cmd -pl otx-application -am test` 全量通过（含既有用例不回归）
+- [x] 4.1 `DepositAppService` 鎺ュ彛绛惧悕 `deposit(ChangeAmountRequest)` 鈫?`deposit(DepositRequestDTO)`锛沗DepositController.deposit()` 璇锋眰浣撳悓姝ユ敼涓?`DepositRequestDTO`
+  - **娴嬭瘯瑕佹眰**锛氭洿鏂?`DepositControllerTest`鈥斺€擿deposit_withValidRequest_returnsBizNo` 鏀圭敤 `DepositRequestDTO` JSON 璇锋眰浣擄紙鍚?chainId/chainTxHash锛夛紝鏂█杩斿洖 `Result<String>` 涓?data 涓?bizNo锛涙柊澧?`deposit_withChainEvidenceJson_bindsToDepositRequestDTO` 鏂█ JSON 缁戝畾閾惧瓧娈?  - **楠屾敹**锛歚mvnw.cmd -pl otx-interface -am test` 閫氳繃
 
-## 4. interface：控制器契约调整
+## 5. infrastructure + starter锛氶厤缃」
 
-- [ ] 4.1 `DepositAppService` 接口签名 `deposit(ChangeAmountRequest)` → `deposit(DepositRequestDTO)`；`DepositController.deposit()` 请求体同步改为 `DepositRequestDTO`
-  - **测试要求**：更新 `DepositControllerTest`——`deposit_withValidRequest_returnsBizNo` 改用 `DepositRequestDTO` JSON 请求体（含 chainId/chainTxHash），断言返回 `Result<String>` 且 data 为 bizNo；新增 `deposit_withChainEvidenceJson_bindsToDepositRequestDTO` 断言 JSON 绑定链字段
-  - **验收**：`mvnw.cmd -pl otx-interface -am test` 通过
+- [x] 5.1 `Web3jProperties` 鏂板 `requiredConfirmations` 瀛楁锛坕nt锛岄粯璁?12锛屼腑鏂?Javadoc锛氬厖鍊煎叆璐︽墍闇€瀹夊叏纭鏁帮級
+  - **娴嬭瘯瑕佹眰**锛氭洿鏂?`Web3jPropertiesTest`鈥斺€擿web3jProperties_requiredConfirmations_defaultsTo12` 鏂█榛樿鍊硷紱`web3jProperties_requiredConfirmations_bindsCustomValue` 鏂█鑷畾涔夊€肩粦瀹?  - **楠屾敹**锛歚mvnw.cmd -pl otx-infrastructure -am test -Dtest=Web3jPropertiesTest` 閫氳繃
 
-## 5. infrastructure + starter：配置项
+- [x] 5.2 `otx-starter/src/main/resources/application-dev.yaml` 鐨?`web3j:` 娈垫柊澧?`required-confirmations: 12`锛堟敞閲婅鏄庯細鍏呭€煎叆璐︽墍闇€瀹夊叏纭鏁帮紝璇锋眰绾?requiredConfirmations 鍙鐩栵級
+  - **娴嬭瘯瑕佹眰**锛氭棤鐙珛娴嬭瘯锛堥厤缃姞杞界敱 6.1 楠岃瘉锛?  - **楠屾敹**锛歽aml 璇硶鏍￠獙锛坄mvnw.cmd -pl otx-starter -am package -DskipTests` 鍙紪璇戦€氳繃锛?
+## 6. 鍏ㄩ噺楠岃瘉
 
-- [ ] 5.1 `Web3jProperties` 新增 `requiredConfirmations` 字段（int，默认 12，中文 Javadoc：充值入账所需安全确认数）
-  - **测试要求**：更新 `Web3jPropertiesTest`——`web3jProperties_requiredConfirmations_defaultsTo12` 断言默认值；`web3jProperties_requiredConfirmations_bindsCustomValue` 断言自定义值绑定
-  - **验收**：`mvnw.cmd -pl otx-infrastructure -am test -Dtest=Web3jPropertiesTest` 通过
+- [x] 6.1 杩愯鍏ㄩ噺妯″潡娴嬭瘯楠岃瘉鏈彉鏇达細`mvnw.cmd -pl otx-interface,otx-application,otx-infrastructure -am test`锛岀‘璁ゆ柊澧炵敤渚嬪叏閮ㄩ€氳繃銆佹棦鏈夌敤渚嬮浂鍥炲綊
+  - **娴嬭瘯瑕佹眰**锛氭墍鏈夋柊澧?淇敼娴嬭瘯绫诲潎鏈変腑鏂囩被 Javadoc銆佹瘡涓?@Test 鏂规硶鏈?`鍦烘櫙锛歚 Javadoc + 涓嫳鍙岃 `@DisplayName`銆乻nake_case 鏂规硶鍚嶃€佹棤榄旀硶鏁板瓧锛堥伒瀹?testing/spec.md锛?  - **楠屾敹**锛氬懡浠ら€€鍑虹爜 0锛宍DepositAppServiceImplTest` / `DepositControllerTest` / `Web3jPropertiesTest` / `BizErrorEnumTest` 鍏ㄩ儴閫氳繃
 
-- [ ] 5.2 `otx-starter/src/main/resources/application-dev.yaml` 的 `web3j:` 段新增 `required-confirmations: 12`（注释说明：充值入账所需安全确认数，请求级 requiredConfirmations 可覆盖）
-  - **测试要求**：无独立测试（配置加载由 6.1 验证）
-  - **验收**：yaml 语法校验（`mvnw.cmd -pl otx-starter -am package -DskipTests` 可编译通过）
-
-## 6. 全量验证
-
-- [ ] 6.1 运行全量模块测试验证本变更：`mvnw.cmd -pl otx-interface,otx-application,otx-infrastructure -am test`，确认新增用例全部通过、既有用例零回归
-  - **测试要求**：所有新增/修改测试类均有中文类 Javadoc、每个 @Test 方法有 `场景：` Javadoc + 中英双语 `@DisplayName`、snake_case 方法名、无魔法数字（遵守 testing/spec.md）
-  - **验收**：命令退出码 0，`DepositAppServiceImplTest` / `DepositControllerTest` / `Web3jPropertiesTest` / `BizErrorEnumTest` 全部通过

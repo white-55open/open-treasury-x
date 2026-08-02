@@ -1,6 +1,6 @@
 package io.github.open55.otx.interfaces.controller;
 
-import io.github.open55.otx.application.deposit.dto.ChangeAmountRequest;
+import io.github.open55.otx.application.deposit.dto.DepositRequestDTO;
 import io.github.open55.otx.application.deposit.service.DepositAppService;
 import io.github.open55.otx.common.response.Result;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +22,11 @@ public class DepositController {
     /**
      * 发起充值请求。
      *
-     * @param request 充值请求体，包含 uid、金额、业务号等信息
+     * @param request 充值请求体，包含 uid、金额、业务号及链上证据（chainId/chainTxHash）等信息
      * @return 业务流水号
      */
     @PostMapping
-    public Result<String> deposit(@RequestBody ChangeAmountRequest request) {
+    public Result<String> deposit(@RequestBody DepositRequestDTO request) {
         return Result.success(depositAppService.deposit(request));
     }
 }

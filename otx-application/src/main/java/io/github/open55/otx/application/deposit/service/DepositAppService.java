@@ -1,7 +1,7 @@
 package io.github.open55.otx.application.deposit.service;
 
-import io.github.open55.otx.application.deposit.dto.ChangeAmountRequest;
+import io.github.open55.otx.application.deposit.dto.DepositRequestDTO;
 
 public interface DepositAppService {
-    String deposit(ChangeAmountRequest request);
+    String deposit(DepositRequestDTO request);
 }

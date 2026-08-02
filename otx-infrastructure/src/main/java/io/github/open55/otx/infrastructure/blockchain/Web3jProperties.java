@@ -33,6 +33,14 @@ public class Web3jProperties {
     private long readTimeout = 5000;
 
     /**
+     * 充值入账所需的安全确认数，默认 12。
+     * <p>
+     * 充值确认闸门在请求未携带 requiredConfirmations 时使用此默认值；
+     * 请求级 requiredConfirmations 可单笔覆盖。
+     */
+    private int requiredConfirmations = 12;
+
+    /**
      * 返回不可修改的 RPC URL 列表
      *
      * @return RPC URL 列表

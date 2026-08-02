@@ -185,6 +185,10 @@ web3j:
 - **[R3] 确认通过后回执查询的二次 RPC 可能失败**（isConfirmed 成功但随后的 queryTxReceipt 抛 Web3jRpcException）→ 缓解：catch 同一 `Web3jRpcException` 转 `DEPOSIT_CHAIN_QUERY_FAILED` 拒绝入账（fail-safe 一致性）；回执缺失时 blockNumber 填 null 的兜底仅在"确认已通过"前提下仍允许入账（保守兜底，凭证 blockNumber 可空，对账可后补）。
 - **[R4] 配置默认值变更影响存量**（`required-confirmations` 默认 12，若某链确认产出慢，充值将大面积被拒）→ 缓解：请求级 `requiredConfirmations` 可单笔覆盖；配置在 starter 层，发布前可评估调整。
 - **[R5] 链 ID 不匹配**：请求 chainId ≠ 配置 chainId 时，`Web3jChainQueryAdapter.assertChainIdMatches` 抛 `LEDGER_CHAIN_NOT_CONFIGURED` → 该错误码语义已覆盖"链未配置"，不新增错误码，design 明确说明复用。
+- **[R6] 已确认的失败交易可通过闸门（安全审查修复）**：`isConfirmed` 原实现仅校验 blockNumber 与确认数，revert 交易（status=0x0）同样打包进块且确认数达标 → 已修复：isConfirmed 增加回执 status="0x1" 校验（与提现结算路径 isSuccessReceipt 一致），失败交易视为未确认。修复位置：`Web3jChainQueryAdapter.isConfirmed`。
+- **[R7] 确认数覆盖可调低至 1 的操纵风险（技术债 DEVT-009）**：请求级 `requiredConfirmations` 可覆盖至 1（仅拦截 ≤0），配合自造交易可在 1 个确认（~12 秒）后入账，PoS 链存在 reorg 回滚导致的空充值风险。R4 决策允许调低覆盖为设计意图，本期不设下限；缓解：生产环境网关认证 + 对账模块以链上回执核销；后续变更可引入 `web3j.min-required-confirmations` 下限配置。
+- **[R8] 金额/收款地址零核对（技术债 DEVT-010）**：闸门仅证明"存在一笔已确认交易"，不核对回执 value 与请求 amount、不核对收款方 to 是否为平台地址（proposal Non-Goal）；且 `queryTxReceipt` 构造 ChainTxReceipt 时 value 硬编码 0，对账模块需先修复 value 读取才有核对数据源。缓解：对账变更（README 规划）落地前依赖上游可信 + 网关认证。
+- **[R9] 重复请求 RPC 消耗（设计决策 D5）**：同 bizNo 重复请求每次执行闸门（3 次 RPC）后幂等兜底，不做幂等预判短路（D5 明确接受"重复请求代价为一次 RPC"）；无认证下存在 RPC DoS 放大面，缓解同 DEVT-007（网关认证 + 限流）。
 
 ## Migration Plan
 

@@ -111,6 +111,11 @@ public class Web3jChainQueryAdapter implements ChainQueryPort {
         if (receipt.getBlockNumber() == null) {
             return false;
         }
+        // 链上交易失败（回执状态非 0x1）视为未确认：已确认的失败交易（revert）同样打包进块且确认数达标，
+        // 若不校验状态将允许伪造充值入账（与提现结算路径的 isSuccessReceipt 校验保持一致）
+        if (!"0x1".equals(receipt.getStatus())) {
+            return false;
+        }
         long currentBlock = currentBlockNumber(chainId);
         long txBlock = receipt.getBlockNumber().longValue();
         long confirmations = currentBlock - txBlock + 1;
