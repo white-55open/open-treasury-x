@@ -11,6 +11,7 @@ import io.github.open55.otx.common.exception.BizIdempotentException;
 import io.github.open55.otx.common.exception.OptimisticLockException;
 import io.github.open55.otx.domain.ledger.LedgerEntryEntity;
 import io.github.open55.otx.domain.ledger.LedgerJournalEntity;
+import io.github.open55.otx.domain.ledger.enums.LedgerJournalStatusEnum;
 import io.github.open55.otx.domain.ledger.repository.LedgerEntryRepo;
 import io.github.open55.otx.domain.ledger.repository.LedgerJournalRepo;
 import jakarta.annotation.Resource;
@@ -118,5 +119,122 @@ public class LedgerAppServiceImpl implements LedgerAppService {
         JournalDetailResponseDTO response = LedgerAssembler.INSTANCE.toResponse(journal);
         response.setEntries(LedgerAssembler.INSTANCE.toEntryResponses(entries));
         return response;
+    }
+
+    /**
+     * 创建草稿凭证入口方法，完成入参校验和幂等检查后委托给 createDraftJournalAtomic。
+     * <p>
+     * 复用 {@link #postJournal(PostJournalRequestDTO)} 的幂等范式：
+     * 入参校验（bizNo/currency/entries 非空）→ existsByBizNo 前置检查 →
+     * 通过 self 代理调用 createDraftJournalAtomic 触发 Spring AOP 事务与重试，
+     * 捕获 BizIdempotentException 视为幂等成功返回已存在的凭证。
+     * 与 postJournal 的区别：不调用 journal.post()，凭证状态保持 DRAFT。
+     *
+     * @param req 过账请求
+     * @return 凭证详情，status 为 DRAFT
+     */
+    @Override
+    public JournalDetailResponseDTO createDraftJournal(PostJournalRequestDTO req) {
+        // 入参校验：bizNo 非空、currency 非空、entries 非空
+        Assert.notNull(req, () -> BizException.get(BizErrorEnum.PARAM_MISS));
+        Assert.notBlank(req.getBizNo(), () -> BizException.get(BizErrorEnum.LEDGER_BIZ_NO_EMPTY));
+        Assert.notBlank(req.getCurrency(), () -> BizException.get(BizErrorEnum.LEDGER_CURRENCY_EMPTY));
+        if (req.getEntries() == null || req.getEntries().isEmpty()) {
+            throw BizException.get(BizErrorEnum.LEDGER_ENTRIES_EMPTY);
+        }
+
+        // 幂等检查：相同 bizNo 的重复请求直接返回已存在的 Journal
+        if (journalRepo.existsByBizNo(req.getBizNo())) {
+            return findByBizNo(req.getBizNo());
+        }
+
+        try {
+            // 通过 self 代理调用 createDraftJournalAtomic，触发 Spring AOP 事务和重试注解
+            return self.createDraftJournalAtomic(req);
+        } catch (BizIdempotentException e) {
+            // 唯一键冲突被视为幂等成功，返回已存在的 Journal
+            return findByBizNo(req.getBizNo());
+        }
+    }
+
+    /**
+     * 创建草稿凭证原子方法，在独立事务中执行。
+     * <p>
+     * 构造 Entity → 借贷平衡与同户同向唯一校验 → 持久化 Journal → 持久化 Entry，
+     * 不调用 journal.post()，凭证状态保持 DRAFT，供链上确认后再过账。
+     *
+     * @param req 过账请求
+     * @return 凭证详情，status 为 DRAFT
+     */
+    @Retryable(retryFor = {OptimisticLockException.class}, maxAttempts = 5,
+            backoff = @Backoff(delay = 100, multiplier = 1.5, maxDelay = 500, random = true))
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+    public JournalDetailResponseDTO createDraftJournalAtomic(PostJournalRequestDTO req) {
+        try {
+            LedgerJournalEntity journal = LedgerAssembler.INSTANCE.toEntity(req);
+            // 保存前校验借贷必平与同户同向唯一，不满足则整单不落库
+            journal.assertBalanced();
+            journal.assertNoDuplicateAccount();
+            journalRepo.save(journal);
+            entryRepo.saveBatch(journal.getEntries(), journal.getId(), journal.getBizNo());
+            // 草稿凭证不调用 post()，状态保持 DRAFT
+            return LedgerAssembler.INSTANCE.toResponse(journal);
+        } catch (DuplicateKeyException ex) {
+            throw new BizIdempotentException(ex);
+        }
+    }
+
+    /**
+     * 按业务流水号过账草稿凭证入口方法。
+     * <p>
+     * 加载凭证后先做状态判断：已 POSTED 直接幂等返回；
+     * DRAFT 通过 self 代理调用 postJournalByBizNoAtomic 执行过账（REQUIRES_NEW + 重试）；
+     * REVERSED 状态由聚合根 post() 抛 LEDGER_JOURNAL_NOT_DRAFT。
+     *
+     * @param bizNo 业务流水号
+     * @return 凭证详情，status 为 POSTED
+     */
+    @Override
+    public JournalDetailResponseDTO postJournalByBizNo(String bizNo) {
+        LedgerJournalEntity journal = journalRepo.findByBizNo(bizNo).orElse(null);
+        if (journal == null) {
+            throw BizException.get(BizErrorEnum.LEDGER_JOURNAL_NOT_FOUND);
+        }
+
+        // 幂等检查：已 POSTED 的凭证直接返回已有结果，不重复过账
+        if (journal.getStatus() == LedgerJournalStatusEnum.POSTED) {
+            return findByBizNo(bizNo);
+        }
+
+        // DRAFT 过账；REVERSED 会在原子方法内由 post() 抛 LEDGER_JOURNAL_NOT_DRAFT
+        return self.postJournalByBizNoAtomic(bizNo);
+    }
+
+    /**
+     * 过账草稿凭证原子方法，在独立事务中执行。
+     * <p>
+     * 重新加载凭证（获取最新乐观锁版本）并装配其全部分录（journalRepo 只查主表，
+     * 需经 entryRepo 加载分录后才能通过聚合根 post() 的借贷平衡校验）→
+     * journal.post()（聚合根校验：借贷必平、同户同向唯一、仅 DRAFT 可过账）→
+     * 更新状态为 POSTED。
+     *
+     * @param bizNo 业务流水号
+     * @return 凭证详情，status 为 POSTED
+     */
+    @Retryable(retryFor = {OptimisticLockException.class}, maxAttempts = 5,
+            backoff = @Backoff(delay = 100, multiplier = 1.5, maxDelay = 500, random = true))
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+    public JournalDetailResponseDTO postJournalByBizNoAtomic(String bizNo) {
+        LedgerJournalEntity journal = journalRepo.findByBizNo(bizNo).orElse(null);
+        if (journal == null) {
+            throw BizException.get(BizErrorEnum.LEDGER_JOURNAL_NOT_FOUND);
+        }
+        // 装配分录：仓储查询仅返回主表数据，post() 的借贷平衡校验依赖完整分录列表
+        journal.setEntries(entryRepo.findByBizNo(bizNo));
+        // 聚合根校验：仅 DRAFT 可过账，REVERSED/POSTED 抛 LEDGER_JOURNAL_NOT_DRAFT
+        journal.post();
+        // 更新状态，乐观锁版本冲突时抛出 OptimisticLockException 触发重试
+        journalRepo.update(journal);
+        return LedgerAssembler.INSTANCE.toResponse(journal);
     }
 }

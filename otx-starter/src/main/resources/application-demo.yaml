@@ -21,3 +21,27 @@ mybatis-plus:
 snowflake-id:
   data-center-id:
   worker-id:
+otx:
+  chain-tx:
+    # 结算所需链上确认数
+    required-confirmations: 12
+    # 广播适配器选择（本期仅 web3j）
+    broadcast-adapter: web3j
+    # 签名适配器选择（dev-only；生产环境对接 KMS/MPC 等外部签名设施）
+    signer-adapter: local-keystore
+    # 平台热钱包地址（交易发送方），广播编排构造签名请求与查询 nonce 使用；
+    # 经环境变量注入（OTX_HOT_WALLET_ADDRESS），本地签名场景也可由 keystore 推导
+    hot-wallet-address: ${OTX_HOT_WALLET_ADDRESS:}
+    local-keystore:
+      # keystore 文件路径（dev-only，仅开发/演示环境使用）
+      key-file: classpath:keystore/dev-withdrawer.json
+      # keystore 密码：经环境变量注入（OTX_KEYSTORE_PASSWORD），禁止硬编码
+      password: ${OTX_KEYSTORE_PASSWORD:}
+    poll:
+      # 可选自动结算轮询（默认关闭）
+      enabled: false
+      # 轮询间隔（毫秒）
+      interval-ms: 30000
+# 注：demo 环境未配置 web3j 段（无真实 RPC 节点），
+# 充值入账所需安全确认数（web3j.required-confirmations，默认 12，请求级可覆盖）
+# 与链上查询相关配置请参照 application-dev.yaml 补齐

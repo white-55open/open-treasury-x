@@ -4,7 +4,7 @@
 
 OTX 当前的链上能力仅有**只读查询**：`ChainQueryPort`（`io.github.open55.otx.domain.ledger.port`，含 `queryTxReceipt` / `currentBlockNumber` / `isConfirmed`）由 `Web3jChainQueryAdapter` 实现（多 RPC 按序故障切换，客户端按 URL 池化于 `Web3jConfig`，配置在 `Web3jProperties`，前缀 `web3j`）。
 
-提现流程 `WithdrawAppServiceImpl.withdraw()` 目前**完全不触碰链上**：直接调用 `accountAppService.changeAmountWithFundFlow`（扣可用余额 + 流水，REQUIRES_NEW + 幂等），再调用 `ledgerAppService.postJournal` 立即过账 `WITHDRAW_ONCHAIN` 凭证（DEBIT USER_AVAILABLE / CREDIT WITHDRAW_IN_TRANSIT），过账失败仅 warn 交由对账修复。
+提现流程在 `withdraw-two-phase` 变更（本变更前置，已完成）后已拆分为三个链下账务用例：`freeze()`（可用→冻结 + FREEZE 流水 + 冻结凭证）、`withdraw()`（结算：扣冻结 + WITHDRAW 流水 + 结算凭证 DEBIT USER_FROZEN / CREDIT WITHDRAW_IN_TRANSIT）、`unfreeze()`（解冻 + UNFREEZE 流水 + 解冻凭证）；三者均不触碰链上。本变更在此基础上补上链上广播编排层。
 
 总账凭证 `LedgerJournalEntity` 已具备：
 - 状态机 `LedgerJournalStatusEnum`：DRAFT → POSTED → REVERSED，转换只能通过领域方法 `post()`（仅 DRAFT）/ `reverse()`（仅 POSTED），**当前所有凭证创建即过账，DRAFT 从未被使用**；
@@ -88,7 +88,7 @@ OTX 承担交易**编排**（构造、签名调用、广播、确认结算），
 | currentNonce / 签名 / 广播 | **无事务** | 纯外部调用，不碰 DB |
 | 广播成功后：请求 → BROADCASTED + 创建 DRAFT 凭证 | 事务 T2（REQUIRED） | 广播成功的记录落库 |
 | 广播失败：请求 → FAILED | 事务 T3（REQUIRED） | 失败留痕 |
-| 结算：扣冻结 + 流水 + 请求 → SETTLED | 事务 T4（**REQUIRES_NEW** + `@Retryable(5)`） | 复用 changeAmountWithFundFlowAtomic 范式 |
+| 结算：扣冻结 + 流水 + 请求 → SETTLED | 事务 T4（**REQUIRES_NEW** + `@Retryable(5)`） | 复用 withdraw-two-phase 变更的 `withdrawAtomic` 结算原子能力 |
 | 结算：凭证 post() | 事务 T5（REQUIRES_NEW + `@Retryable(5)`，postJournalByBizNo） | 失败仅 warn，对账修复（与既有提现一致） |
 | 取消：解冻 + 流水 + 请求 → CANCELLED | 事务 T6（REQUIRES_NEW + `@Retryable(5)`） | 复用 phase 1 unfreeze 能力 |
 
@@ -242,7 +242,7 @@ public interface WithdrawRequestRepo {
 
 | 端点 | 方法 | 变更 | 说明 |
 |------|------|------|------|
-| `POST /withdraw` | `withdraw` | **BREAKING**（行为与响应变化） | 请求体 `WithdrawRequestDTO` 在 `ChangeAmountRequest` 基础上新增 `chainId` / `toAddress` / `tokenAddress` / `requiredConfirmations`（可选，默认取配置）；不再扣余额立即过账，改为签名+广播；响应由 `Result<String>`（bizNo）改为 `Result<WithdrawBroadcastResponseDTO>`（bizNo + txHash + status） |
+| `POST /withdraw/broadcast` | `broadcast` | **新增**（原"改造 `POST /withdraw`"修订：该端点已被 withdraw-two-phase 变更拆分为 `/withdraw/freeze|settle|unfreeze`，广播编排另立端点） | 请求体 `WithdrawRequestDTO`（在 withdraw-two-phase 四字段基础上新增 `chainId` / `toAddress` / `tokenAddress` / `requiredConfirmations`，可选默认取配置）；不再扣余额立即过账，改为签名+广播；响应 `Result<WithdrawBroadcastResponseDTO>`（bizNo + txHash + status） |
 | `POST /withdraw/{bizNo}/confirm-settle` | `confirmAndSettle` | 新增 | 链上确认后结算，响应 `Result<WithdrawSettleResponseDTO>`（bizNo + status + journalStatus） |
 | `POST /withdraw/{bizNo}/cancel` | `cancelWithdraw` | 新增 | 解冻取消，响应 `Result<WithdrawStatusResponseDTO>` |
 | `GET /withdraw/{bizNo}/status` | `queryStatus` | 新增 | 查询提现请求状态与 txHash，响应 `Result<WithdrawStatusResponseDTO>` |
@@ -253,7 +253,12 @@ DTO 后缀遵循 `*RequestDTO` / `*ResponseDTO` 命名（新增 `WithdrawRequest
 
 ```java
 public interface WithdrawAppService {
-    WithdrawBroadcastResponseDTO withdraw(WithdrawRequestDTO request);   // 改造
+    // 以下三个用例由 withdraw-two-phase 变更提供并保留（冻结/结算/解冻，链下账务）
+    String freeze(WithdrawRequestDTO request);
+    String withdraw(WithdrawRequestDTO request);      // 结算：扣冻结+流水+过账（confirmAndSettle 复用其原子能力）
+    String unfreeze(WithdrawRequestDTO request);      // 解冻：cancelWithdraw 复用其原子能力
+    // 本变更新增（链上广播编排）
+    WithdrawBroadcastResponseDTO broadcast(WithdrawRequestDTO request);  // 新增（修订：原 design 改造 withdraw 改为另立 broadcast，避免与结算语义冲突）
     WithdrawSettleResponseDTO confirmAndSettle(String bizNo);            // 新增
     WithdrawStatusResponseDTO cancelWithdraw(String bizNo);              // 新增
     WithdrawStatusResponseDTO queryStatus(String bizNo);                 // 新增
@@ -354,11 +359,11 @@ otx:
 | 链重组（reorg）导致已结算交易回滚 | 必填确认数可配置（默认 12），确认数不足自动拒绝；极端场景由后续对账变更处理 |
 | RPC 单点故障 | 复用 `Web3jChainQueryAdapter` 既有多 RPC 按序切换模式，广播适配器同样实现 |
 | DRAFT 凭证残留（链上失败后保留） | 文档记录，由对账/凭证清理变更统一处理；不扩展现有状态机（保持最小侵入） |
-| `POST /withdraw` 响应结构变化（BREAKING） | 与上游调用方同步发布；响应新增 txHash/status 字段，业务号仍返回（bizNo） |
+| 新增广播端点与结算/取消/查询端点（纯增量，无 BREAKING） | 提现端点已在 withdraw-two-phase 变更中拆分为 `/withdraw/freeze|settle|unfreeze`（上游已同步适配），本变更新增 `/withdraw/broadcast` 与 `/{bizNo}/confirm-settle|cancel|status`，既有端点不变 |
 
 ## Migration Plan（迁移方案）
 
-1. 部署顺序：V5 迁移（新增 `withdraw_request_t`）→ 应用发布（新端点与配置）→ 上游调用方适配新 `POST /withdraw` 响应结构；
+1. 部署顺序：V5 迁移（新增 `withdraw_request_t`）→ 应用发布（新端点与配置）→ 上游调用方接入新增端点（`/withdraw/broadcast` 与 `/{bizNo}/confirm-settle|cancel|status`）；withdraw-two-phase 的 `/withdraw/freeze|settle|unfreeze` 端点保持不变；
 2. 配置发布：`otx.chain-tx` 段默认值随应用发布（required-confirmations 按链设置；`signer-adapter` 先配 `local-keystore` 仅限开发环境）；
 3. 回滚策略：新表与端点均为增量，回滚仅需恢复旧版应用；**注意**：回滚期间已广播的提现请求无法通过新端点结算，需在回滚前完成存量 SETTLED 或人工处理；
 4. 既有提现数据兼容：已 POSTED 的历史凭证不受影响，新流程只对**新发起**的提现生效。
