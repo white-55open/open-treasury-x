@@ -72,7 +72,45 @@ public enum BizErrorEnum {
     /**
      * 请求的链 ID 未在 web3j 配置中注册，无法发起 RPC 查询
      */
-    LEDGER_CHAIN_NOT_CONFIGURED("LEDGER_CHAIN_NOT_CONFIGURED", "The requested chain is not configured.");
+    LEDGER_CHAIN_NOT_CONFIGURED("LEDGER_CHAIN_NOT_CONFIGURED", "The requested chain is not configured."),
+
+    /**
+     * 链上交易签名失败（SignerPort 签名异常，如 keystore 文件缺失或密码错误）
+     */
+    TX_SIGN_FAILED("TX_SIGN_FAILED", "Transaction signing failed."),
+    /**
+     * 链上交易广播失败（RPC 拒绝/超时/网络异常，未上链）
+     */
+    TX_BROADCAST_FAILED("TX_BROADCAST_FAILED", "Transaction broadcast failed."),
+    /**
+     * 结算时链上确认数未达必填确认数，可重试
+     */
+    TX_NOT_CONFIRMED_YET("TX_NOT_CONFIRMED_YET", "Transaction is not confirmed yet."),
+    /**
+     * 链上交易失败（回执状态为失败）或交易缺失
+     */
+    TX_CHAIN_FAILED("TX_CHAIN_FAILED", "Transaction failed on chain."),
+    /**
+     * 按业务号查询不到提现请求记录
+     */
+    WITHDRAW_REQUEST_NOT_FOUND("WITHDRAW_REQUEST_NOT_FOUND", "Withdraw request not found."),
+    /**
+     * 提现请求状态非法转移或非法操作（如已结算后再取消）
+     */
+    WITHDRAW_REQUEST_STATUS_INVALID("WITHDRAW_REQUEST_STATUS_INVALID", "Withdraw request status is invalid."),
+
+    /**
+     * 充值入账请求缺少链上证据（chainId/chainTxHash 缺失或 requiredConfirmations 非法）
+     */
+    DEPOSIT_CHAIN_INFO_MISS("DEPOSIT_CHAIN_INFO_MISS", "Deposit chain evidence is missing or invalid."),
+    /**
+     * 充值链上交易未达安全确认数，拒绝入账
+     */
+    DEPOSIT_TX_NOT_CONFIRMED("DEPOSIT_TX_NOT_CONFIRMED", "Deposit transaction is not confirmed yet."),
+    /**
+     * 充值链上查询失败（RPC 不可用等），fail-safe 拒绝入账
+     */
+    DEPOSIT_CHAIN_QUERY_FAILED("DEPOSIT_CHAIN_QUERY_FAILED", "Deposit chain query failed.");
 
     private final String code;
 
