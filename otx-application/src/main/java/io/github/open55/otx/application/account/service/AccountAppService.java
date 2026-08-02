@@ -45,7 +45,9 @@ public interface AccountAppService {
     /**
      * 变更金额并记录资金流水（含幂等处理）。
      * <p>
-     * 支持充值（DEPOSIT）和提现（WITHDRAW）两种资金变更类型。
+     * 仅支持充值（DEPOSIT）资金变更类型，WITHDRAW 及其他类型会抛出
+     * FUND_FLOW_TYPE_NOT_SUPPORT（提现已由 withdraw 上下文的两阶段
+     * 冻结-结算-解冻用例承担，不再复用本方法）。
      * 通过业务流水号（bizNo）实现幂等，重复请求返回相同结果。
      *
      * @param request 资金变更请求

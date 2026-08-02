@@ -11,7 +11,9 @@ public enum LedgerBizTypeEnum {
     INTERNAL_TRANSFER("INTERNAL_TRANSFER"),
     FEE("FEE"),
     REVERSAL("REVERSAL"),
-    ADJUSTMENT("ADJUSTMENT");
+    ADJUSTMENT("ADJUSTMENT"),
+    FREEZE("FREEZE"),
+    UNFREEZE("UNFREEZE");
 
     private final String code;
 }

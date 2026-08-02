@@ -3,7 +3,7 @@ CREATE TABLE ledger_journal_t
 (
     id               BIGINT           NOT NULL COMMENT '主键ID',
     biz_no           VARCHAR(64)      NOT NULL COMMENT '业务流水号（幂等键，全局唯一）',
-    biz_type         VARCHAR(32)      NOT NULL COMMENT '业务类型（DEPOSIT_ONCHAIN / WITHDRAW_ONCHAIN / INTERNAL_TRANSFER / FEE / REVERSAL / ADJUSTMENT）',
+    biz_type         VARCHAR(32)      NOT NULL COMMENT '业务类型（DEPOSIT_ONCHAIN / WITHDRAW_ONCHAIN / INTERNAL_TRANSFER / FEE / REVERSAL / ADJUSTMENT / FREEZE / UNFREEZE）',
     posting_date     DATE             NOT NULL COMMENT '记账日期（业务实际发生日期，非系统日期）',
     currency         VARCHAR(16)      NOT NULL COMMENT '币种（如 USDT、ETH）',
     status           VARCHAR(16)      NOT NULL DEFAULT 'DRAFT' COMMENT '凭证状态（DRAFT / POSTED / REVERSED）',

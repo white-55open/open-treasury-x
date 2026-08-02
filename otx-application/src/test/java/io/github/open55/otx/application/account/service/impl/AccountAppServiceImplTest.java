@@ -241,22 +241,22 @@ class AccountAppServiceImplTest {
         }
 
         /**
-         * WITHDRAW 出账：冻结余额扣减，流水方向为 OUT。
+         * 场景：WITHDRAW 类型不再受支持。
+         * Scenario: WITHDRAW type is rejected with FUND_FLOW_TYPE_NOT_SUPPORT.
+         * 断言业务码正确且账户与流水均无副作用（提现已由 withdraw 上下文的两阶段用例承担）。
          */
         @Test
-        @DisplayName("WITHDRAW 出账成功")
-        void atomic_withWithdraw_succeeds() {
+        @DisplayName("WITHDRAW 类型抛不支持异常 | WITHDRAW type throws not supported")
+        void atomic_withWithdrawType_throwsFundFlowTypeNotSupport() {
             ChangeAmountRequest request = buildRequest(FundFlowTypeEnum.WITHDRAW);
-            AccountEntity entity = createAccountEntity();
-            entity.setFrozenBalance(new BigDecimal("200"));
-            when(accountRepo.findByUid(TEST_UID)).thenReturn(entity);
+            when(accountRepo.findByUid(TEST_UID)).thenReturn(createAccountEntity());
 
-            service.changeAmountWithFundFlowAtomic(request);
+            BizException ex = assertThrows(BizException.class,
+                    () -> service.changeAmountWithFundFlowAtomic(request));
 
-            verify(accountRepo).update(accountCaptor.capture());
-            assertEquals(AMOUNT_100, accountCaptor.getValue().getFrozenBalance());
-            verify(fundFlowAppService).record(argThat(r ->
-                    r.getDirection() == FundFlowDirectionEnum.OUT));
+            assertEquals("FUND_FLOW_TYPE_NOT_SUPPORT", ex.getErrorCode());
+            verify(accountRepo, never()).update(any());
+            verify(fundFlowAppService, never()).record(any());
         }
 
         /**

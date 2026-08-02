@@ -155,9 +155,10 @@ public class AccountAppServiceImpl implements AccountAppService {
     /**
      * 原子化变更金额并记录资金流水。
      * <p>
-     * 开启新事务（REQUIRES_NEW），先查账户余额，根据资金流水类型
-     * 执行充值（DEPOSIT）或提现（WITHDRAW）领域方法，记录资金流水
-     * （唯一键冲突转幂等异常），最后更新账户（可能触发乐观锁重试）。
+     * 开启新事务（REQUIRES_NEW），先查账户余额，仅支持充值（DEPOSIT）
+     * 资金类型：执行充值领域方法并记录 IN 方向流水，其他类型抛出不支持
+     * 异常（提现已由 withdraw 上下文的两阶段用例承担）。
+     * 流水记录（唯一键冲突转幂等异常）后更新账户（可能触发乐观锁重试）。
      * <p>
      * 乐观锁冲突时由 Spring Retry 自动重试，最多 5 次。
      *
@@ -173,10 +174,6 @@ public class AccountAppServiceImpl implements AccountAppService {
             case FundFlowTypeEnum.DEPOSIT:
                 direction = FundFlowDirectionEnum.IN;
                 account.deposit(request.getAmount());
-                break;
-            case FundFlowTypeEnum.WITHDRAW:
-                direction = FundFlowDirectionEnum.OUT;
-                account.withdraw(request.getAmount());
                 break;
             default:
                 throw BizException.get(BizErrorEnum.FUND_FLOW_TYPE_NOT_SUPPORT);

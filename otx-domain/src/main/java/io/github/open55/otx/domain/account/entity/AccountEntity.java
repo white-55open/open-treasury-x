@@ -1,6 +1,5 @@
 package io.github.open55.otx.domain.account.entity;
 
-import cn.hutool.core.lang.Assert;
 import io.github.open55.otx.common.exception.BizErrorEnum;
 import io.github.open55.otx.common.exception.BizException;
 import io.github.open55.otx.domain.common.entity.BaseEntity;
@@ -73,20 +72,19 @@ public class AccountEntity extends BaseEntity {
      * <p>
      * 业务场景：提现申请审核通过后，实际扣除已冻结的资金。
      * 调用前需确保对应金额已通过 freezeBalance 冻结。
+     * 结算只与冻结余额相关，不校验可用余额；冻结余额恰好等于提现金额时允许全额结算。
      *
      * @param amount 提现金额，必须大于零
      * @throws BizException 当金额为空或不大于零时抛出 WITHDRAW_AMOUNT_INVALID；
-     *                      当可用余额不足时抛出 INSUFFICIENT_BALANCE；
-     *                      当冻结余额不足时抛出 IllegalArgumentException
+     *                      当冻结余额不足时抛出 INSUFFICIENT_FROZEN_BALANCE
      */
     public void withdraw(BigDecimal amount) {
         if (amount == null || amount.signum() <= 0) {
             throw BizException.get(BizErrorEnum.WITHDRAW_AMOUNT_INVALID);
         }
-        if (getAvailableBalance().compareTo(amount) < 0) {
-            throw BizException.get(BizErrorEnum.INSUFFICIENT_BALANCE);
+        if (getFrozenBalance().compareTo(amount) < 0) {
+            throw BizException.get(BizErrorEnum.INSUFFICIENT_FROZEN_BALANCE);
         }
-        Assert.isTrue(getFrozenBalance().compareTo(amount) > 0);
         setFrozenBalance(getFrozenBalance().subtract(amount));
     }
 
