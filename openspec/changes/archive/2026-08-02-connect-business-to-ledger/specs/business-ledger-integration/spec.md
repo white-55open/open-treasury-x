@@ -8,7 +8,7 @@
 - 充值过账的业务类型必须为 `DEPOSIT_ONCHAIN`
 - 过账分录必须且仅包含两条：`DEBIT DEPOSIT_IN_TRANSIT` 和 `CREDIT USER_AVAILABLE`
 - 过账失败时禁止回滚余额变更和资金流水（最终一致性）
-- `currency` 从 `ChangeAmountRequest.currency` 获取，为空时使用 `"USDT"`
+- `currency` 从 `ChangeAmountRequest.currency` 获取，为空时过账抛 `LEDGER_CURRENCY_EMPTY`，余额变更不受影响
 
 #### 场景:充值成功且过账成功
 - **当** 用户发起一笔充值请求，币种为 USDT，金额为 100
@@ -42,7 +42,7 @@
 - 提现过账的业务类型必须为 `WITHDRAW_ONCHAIN`
 - 过账分录必须且仅包含两条：`DEBIT USER_AVAILABLE` 和 `CREDIT WITHDRAW_IN_TRANSIT`
 - 过账失败时禁止回滚余额变更和资金流水（最终一致性）
-- `currency` 从 `ChangeAmountRequest.currency` 获取，为空时使用 `"USDT"`
+- `currency` 从 `ChangeAmountRequest.currency` 获取，为空时过账抛 `LEDGER_CURRENCY_EMPTY`，余额变更不受影响
 
 #### 场景:提现成功且过账成功
 - **当** 用户发起一笔提现请求，金额为 50
@@ -61,7 +61,7 @@
 - **那么** 总账过账走幂等返回已存在的凭证
 - **那么** 总账中仅有一条该 bizNo 的凭证
 
-#### 场景:提放过账分录校验
+#### 场景:提现过账分录校验
 - **当** 一笔提现金额为 50 成功过账
 - **那么** 凭证必须包含 2 条分录
 - **那么** DEBIT 分录的科目必须为 `USER_AVAILABLE`，金额为 50，uid 为提现用户

@@ -26,7 +26,7 @@
     - CREDIT `WITHDRAW_IN_TRANSIT`，金额=req.amount，uid=null
 
 - [x] 3.3 修改 `withdraw()` 方法：在 `accountAppService.changeAmountWithFundFlow()` 成功后调用 `ledgerAppService.postJournal()`，通过 `mvn -pl otx-application compile`
-  - 过账失败时记录 `log.warn("总账过账失败, bizNo={}", bizNo, e)` 不抛异常
+  - 过账失败时记录 `log.warn("Journal posting failed, bizNo={}", bizNo, e)` 不抛异常
 
 ## 4. 单元测试
 

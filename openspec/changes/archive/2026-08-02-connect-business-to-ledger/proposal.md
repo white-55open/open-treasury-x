@@ -13,7 +13,7 @@ Ledger 模块（聚合根 `LedgerJournalEntity`  + 复式记账不变量）和 W
 
 ### 修改能力
 
-- **`ChangeAmountRequest`**：新增 `currency` 字段（String，默认 "USDT"），供过账时填充凭证币种
+- **`ChangeAmountRequest`**：新增 `currency` 字段（String，不要求必填；为空时过账抛 `LEDGER_CURRENCY_EMPTY`，余额变更不受影响），供过账时填充凭证币种
 
 ### 会计分录规则
 
@@ -45,5 +45,5 @@ Ledger 模块（聚合根 `LedgerJournalEntity`  + 复式记账不变量）和 W
 
 | 层 | 变更 |
 |---|---|
-| `otx-application` | `ChangeAmountRequest` 新增 `currency` 字段；`DepositAppServiceImpl` 增加过账调用；`WithdrawAppServiceImpl` 增加过账调用；可能新增映射工具类将 `ChangeAmountRequest` 转换为 `PostJournalRequestDTO` |
+| `otx-application` | `ChangeAmountRequest` 新增 `currency` 字段；`DepositAppServiceImpl` 增加过账调用；`WithdrawAppServiceImpl` 增加过账调用；各服务内联 private 方法构建 `PostJournalRequestDTO`（不新建映射类） |
 | 其他层 | 无变更。Domain / Infrastructure / Interface 均不受影响 |

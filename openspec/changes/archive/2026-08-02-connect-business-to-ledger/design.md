@@ -57,10 +57,9 @@ DepositAppServiceImpl.deposit()
 
 ### 决策 4：`ChangeAmountRequest` 新增 `currency` 字段
 
-- 类型：`String`
-- 默认值：`"USDT"`（当前业务场景仅 USDT）
+- 类型：`String`，无默认值兜底
 - `DepositController` / `WithdrawController` 的请求体不要求调用方传 `currency`，由前端或客户端按需填充
-- 不做必填校验，为空时过账默认 `"USDT"`（与 `LedgerJournalEntity.create()` 的 `LEDGER_CURRENCY_EMPTY` 校验配合——若 currency 为空，过账时会抛异常）
+- 不做必填校验：currency 为空时，`LedgerAppServiceImpl.postJournal()` 入参校验抛 `LEDGER_CURRENCY_EMPTY`（领域层 `LedgerJournalEntity.create()` 工厂同样兜底校验），余额变更不受影响，日志记录过账失败
 
 ### 决策 5：PostJournalRequestDTO 字段填充规则
 
@@ -68,9 +67,9 @@ DepositAppServiceImpl.deposit()
 |---|---|
 | `bizNo` | `request.getBizNo()` 复用资金流水 bizNo |
 | `bizType` | DEPOSIT → `DEPOSIT_ONCHAIN`；WITHDRAW → `WITHDRAW_ONCHAIN` |
-| `currency` | `request.getCurrency()`，默认 "USDT" |
+| `currency` | `request.getCurrency()`，直接透传 |
 | `postingDate` | `LocalDate.now()` |
-| `description` | "充值" / "提现" + bizNo |
+| `description` | "充值-" / "提现-" + bizNo |
 | `chainId` / `chainTxHash` / `blockNumber` / `tokenAddress` | null（后续链上确认阶段填充） |
 | `entries` | 见分录映射表 |
 
@@ -91,7 +90,7 @@ DepositAppServiceImpl.deposit()
 ### 决策 7：异常处理策略
 
 - step ② 过账失败时，不阻断 step ① 的成功结果（不抛异常）
-- 日志记录 `WARN` 级别：`"Journal posting failed for bizNo={}, balance and fund flow already committed"`
+- 日志记录 `WARN` 级别（英文文案，含 bizNo 与异常堆栈）：`"Journal posting failed, bizNo={}"`
 - 调用方（Controller）仍返回成功——因为用户余额已变更、流水已记录，业务已完成
 - 账本缺失的记录后续通过定时对账任务修复
 
