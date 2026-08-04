@@ -2,6 +2,7 @@ package io.github.open55.otx.domain.ledger.repository;
 
 import io.github.open55.otx.domain.ledger.LedgerJournalEntity;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -26,6 +27,13 @@ public interface LedgerJournalRepo {
      * @return 凭证聚合根，不存在时返回 Optional.empty()
      */
     Optional<LedgerJournalEntity> findByBizNo(String bizNo);
+
+    /**
+     * 查询全部凭证，只查主表（不含分录），按创建时间降序返回（最新在前）。
+     *
+     * @return 凭证列表
+     */
+    List<LedgerJournalEntity> findAllOrderByCreateTimeDesc();
 
     /**
      * 判断指定业务流水号是否已存在。

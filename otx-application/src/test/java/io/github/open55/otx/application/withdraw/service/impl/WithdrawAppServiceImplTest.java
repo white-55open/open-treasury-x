@@ -8,6 +8,7 @@ import io.github.open55.otx.application.ledger.dto.response.JournalDetailRespons
 import io.github.open55.otx.application.ledger.service.LedgerAppService;
 import io.github.open55.otx.application.withdraw.dto.request.WithdrawRequestDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawBroadcastResponseDTO;
+import io.github.open55.otx.application.withdraw.dto.response.WithdrawRequestViewDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawSettleResponseDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawStatusResponseDTO;
 import io.github.open55.otx.common.exception.BizException;
@@ -42,10 +43,12 @@ import org.springframework.dao.DuplicateKeyException;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doThrow;
@@ -1108,6 +1111,51 @@ class WithdrawAppServiceImplTest {
     private static WithdrawRequestEntity newPendingEntity() {
         return WithdrawRequestEntity.create(TEST_UID, BIZ_NO_BROADCAST, AMOUNT_50,
                 CURRENCY_USDT, CHAIN_ID, TO_ADDRESS, TOKEN_ADDRESS);
+    }
+
+    @Nested
+    @DisplayName("listRequests 查询全部提现请求视图 | list withdraw request views")
+    class ListRequests {
+
+        /**
+         * 场景：存在提现请求时按创建时间降序装配视图。
+         * Scenario: request views are assembled when requests exist.
+         * 断言 bizNo / uid / amount / txHash / status 等字段从实体透传到视图 DTO。
+         */
+        @Test
+        @DisplayName("存在提现请求时返回装配后的视图 | returns views when requests exist")
+        void listRequests_withRequests_returnsViewDtos() {
+            when(withdrawRequestRepo.findAll()).thenReturn(List.of(newBroadcastedEntity()));
+
+            List<WithdrawRequestViewDTO> result = service.listRequests();
+
+            assertEquals(1, result.size());
+            WithdrawRequestViewDTO view = result.get(0);
+            assertEquals(BIZ_NO_BROADCAST, view.getBizNo());
+            assertEquals(TEST_UID, view.getUid());
+            assertEquals(AMOUNT_50, view.getAmount());
+            assertEquals(CURRENCY_USDT, view.getCurrency());
+            assertEquals(CHAIN_ID, view.getChainId());
+            assertEquals(TO_ADDRESS, view.getToAddress());
+            assertEquals(TOKEN_ADDRESS, view.getTokenAddress());
+            assertEquals(TX_HASH, view.getTxHash());
+            assertEquals("BROADCASTED", view.getStatus());
+        }
+
+        /**
+         * 场景：无提现请求时返回空列表。
+         * Scenario: empty list is returned when no requests exist.
+         * 断言不抛异常且列表为空。
+         */
+        @Test
+        @DisplayName("无提现请求时返回空列表 | returns empty list when no requests exist")
+        void listRequests_empty_returnsEmptyList() {
+            when(withdrawRequestRepo.findAll()).thenReturn(List.of());
+
+            List<WithdrawRequestViewDTO> result = service.listRequests();
+
+            assertTrue(result.isEmpty());
+        }
     }
 
     private static WithdrawRequestEntity newBroadcastedEntity() {

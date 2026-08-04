@@ -2,8 +2,11 @@ package io.github.open55.otx.application.withdraw.service;
 
 import io.github.open55.otx.application.withdraw.dto.request.WithdrawRequestDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawBroadcastResponseDTO;
+import io.github.open55.otx.application.withdraw.dto.response.WithdrawRequestViewDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawSettleResponseDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawStatusResponseDTO;
+
+import java.util.List;
 
 /**
  * 提现应用服务接口，定义两阶段提现与链上广播编排的用例边界。
@@ -102,4 +105,13 @@ public interface WithdrawAppService {
      * @throws io.github.open55.otx.common.exception.BizException 请求不存在抛 WITHDRAW_REQUEST_NOT_FOUND
      */
     WithdrawStatusResponseDTO queryStatus(String bizNo);
+
+    /**
+     * 查询全部提现请求视图，按创建时间降序返回（最新在前）。
+     * <p>
+     * 只读查询，数据量大时后续引入分页；管理控制台提现单据列表的数据源。
+     *
+     * @return 提现请求视图列表
+     */
+    List<WithdrawRequestViewDTO> listRequests();
 }

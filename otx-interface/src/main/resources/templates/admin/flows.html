@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>流水时间线 - OTX 管理控制台</title>
+    <style>
+        body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; margin: 0; background: #f5f6f8; color: #333; }
+        header { background: #1f2d3d; color: #fff; padding: 16px 24px; }
+        header h1 { margin: 0; font-size: 20px; }
+        header p.notice { margin: 6px 0 0; font-size: 12px; color: #ffc069; }
+        nav.bar { background: #2c3e50; padding: 8px 24px; }
+        nav.bar a { color: #cfd8e3; text-decoration: none; margin-right: 20px; font-size: 13px; }
+        nav.bar a:hover { color: #fff; }
+        main { padding: 24px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden;
+                box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 13px; }
+        th { background: #f0f2f5; font-weight: 600; }
+        tr:hover td { background: #fafbfc; }
+        .empty { padding: 24px; text-align: center; color: #999; }
+        .dir-in { color: #27ae60; font-weight: 600; }
+        .dir-out { color: #c0392b; font-weight: 600; }
+        code { font-family: Consolas, monospace; font-size: 12px; color: #555; }
+        footer { padding: 16px 24px; font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>用户资金流水</h1>
+    <p class="notice">内部运维工具，仅限内网/本地使用，上线前须网关认证 · 流水为 append-only 不可篡改</p>
+</header>
+<nav class="bar">
+    <a th:href="@{/admin}">首页</a>
+    <a th:href="@{/admin/accounts}">账户总览</a>
+    <a th:href="@{/admin/withdraws}">提现单据</a>
+    <a th:href="@{/admin/journals}">凭证查看</a>
+</nav>
+<main>
+    <p>用户 ID：<strong th:text="${uid}">0</strong></p>
+    <table>
+        <thead>
+        <tr>
+            <th>流水号</th>
+            <th>类型</th>
+            <th>方向</th>
+            <th>变动金额</th>
+            <th>变动前余额</th>
+            <th>变动后余额</th>
+            <th>业务号</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="flow : ${flows}">
+            <td><code th:text="${flow.flowNo}">-</code></td>
+            <td>
+                <span th:switch="${flow.type.name()}">
+                    <span th:case="'DEPOSIT'">充值</span>
+                    <span th:case="'WITHDRAW'">提现</span>
+                    <span th:case="'FREEZE'">冻结</span>
+                    <span th:case="'UNFREEZE'">解冻</span>
+                    <span th:case="*" th:text="${flow.type.name()}">未知</span>
+                </span>
+            </td>
+            <td>
+                <span th:switch="${flow.direction.name()}">
+                    <span th:case="'IN'" class="dir-in">入</span>
+                    <span th:case="'OUT'" class="dir-out">出</span>
+                    <span th:case="*" th:text="${flow.direction.name()}">-</span>
+                </span>
+            </td>
+            <td th:text="${#numbers.formatDecimal(flow.amount, 1, 2)}">0.00</td>
+            <td th:text="${#numbers.formatDecimal(flow.balanceBefore, 1, 2)}">0.00</td>
+            <td th:text="${#numbers.formatDecimal(flow.balanceAfter, 1, 2)}">0.00</td>
+            <td><code th:text="${flow.bizNo}">-</code></td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="empty" th:if="${#lists.isEmpty(flows)}">该用户暂无资金流水</div>
+</main>
+<footer>OTX（open-treasury-x）Web3 财务管理中间件 · 管理控制台</footer>
+</body>
+</html>

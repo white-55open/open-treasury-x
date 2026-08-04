@@ -1,6 +1,7 @@
 package io.github.open55.otx.application.account.service.impl;
 
 import cn.hutool.core.lang.Assert;
+import io.github.open55.otx.application.account.dto.response.AccountSummaryDTO;
 import io.github.open55.otx.application.account.dto.response.GetAccountResponse;
 import io.github.open55.otx.application.account.service.AccountAppService;
 import io.github.open55.otx.application.assembler.AccountAssembler;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 账户应用服务实现，编排账户相关的业务用例。
@@ -102,6 +104,34 @@ public class AccountAppServiceImpl implements AccountAppService {
     public GetAccountResponse getByUid(Long uid) {
         AccountEntity entity = getAccountEntityOrThrow(uid);
         return AccountAssembler.INSTANCE.entity2AccountResponse(entity);
+    }
+
+    /**
+     * 查询全部账户摘要，按创建时间升序返回。
+     * <p>
+     * 只读查询，数据量大时后续引入分页；管理控制台账户总览的数据源。
+     *
+     * @return 账户摘要列表
+     */
+    @Override
+    public List<AccountSummaryDTO> listAccounts() {
+        return accountRepo.findAll().stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /**
+     * 账户实体装配为账户摘要 DTO。
+     *
+     * @param entity 账户实体
+     * @return 账户摘要 DTO
+     */
+    private AccountSummaryDTO toSummary(AccountEntity entity) {
+        AccountSummaryDTO dto = new AccountSummaryDTO();
+        dto.setUid(entity.getUid());
+        dto.setAvailableBalance(entity.getAvailableBalance());
+        dto.setFrozenBalance(entity.getFrozenBalance());
+        return dto;
     }
 
     /**

@@ -1,6 +1,10 @@
 package io.github.open55.otx.infrastructure.repository;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.core.toolkit.LambdaUtils;
 import io.github.open55.otx.domain.ledger.LedgerEntryEntity;
 import io.github.open55.otx.domain.ledger.LedgerJournalEntity;
 import io.github.open55.otx.domain.ledger.enums.LedgerAccountCodeEnum;
@@ -8,6 +12,8 @@ import io.github.open55.otx.domain.ledger.enums.LedgerEntryTypeEnum;
 import io.github.open55.otx.domain.ledger.repository.LedgerJournalRepo;
 import io.github.open55.otx.infrastructure.mapper.LedgerJournalMapper;
 import io.github.open55.otx.infrastructure.po.LedgerJournalPO;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,6 +43,14 @@ class LedgerJournalRepoImplTest {
 
     private static final String BIZ_NO = "BIZ-20260101-0001";
 
+    @BeforeAll
+    static void installLambdaCache() {
+        // 预装 MyBatis-Plus 列缓存：纯 JUnit 环境下 LambdaQueryWrapper 解析列名需要 TableInfo
+        TableInfo tableInfo = TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), LedgerJournalPO.class);
+        LambdaUtils.installCache(tableInfo);
+    }
+
     @Mock
     private LedgerJournalMapper ledgerJournalMapper;
 
@@ -45,6 +59,9 @@ class LedgerJournalRepoImplTest {
 
     @Captor
     private ArgumentCaptor<LedgerJournalPO> poCaptor;
+
+    @Captor
+    private ArgumentCaptor<LambdaQueryWrapper<LedgerJournalPO>> wrapperCaptor;
 
     @Nested
     @DisplayName("save 保存凭证 | save journal")
@@ -107,6 +124,36 @@ class LedgerJournalRepoImplTest {
             Optional<LedgerJournalEntity> result = journalRepo.findByBizNo(BIZ_NO);
 
             assertFalse(result.isPresent());
+        }
+    }
+
+    @Nested
+    @DisplayName("findAllOrderByCreateTimeDesc 按创建时间倒序查询全部凭证 | find all journals sorted desc")
+    class FindAllOrderByCreateTimeDesc {
+
+        /**
+         * 场景：存在凭证时只查主表并按创建时间降序返回。
+         * Scenario: journals are returned from the main table ordered by create time descending.
+         * 断言 Mapper.selectList 收到含 createTime 降序排序的 wrapper，且 PO 正确转 Entity。
+         */
+        @Test
+        @DisplayName("全部凭证按创建时间降序返回 | all journals ordered by create time descending")
+        void findAllOrderByCreateTimeDesc_returnsJournalsSortedDesc() {
+            LedgerJournalPO po = new LedgerJournalPO();
+            po.setId(1L);
+            po.setBizNo(BIZ_NO);
+            po.setBizType("DEPOSIT_ONCHAIN");
+            po.setCurrency("USDT");
+            when(ledgerJournalMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(po));
+
+            List<LedgerJournalEntity> result = journalRepo.findAllOrderByCreateTimeDesc();
+
+            assertEquals(1, result.size());
+            assertEquals(BIZ_NO, result.get(0).getBizNo());
+            verify(ledgerJournalMapper).selectList(wrapperCaptor.capture());
+            String orderBy = wrapperCaptor.getValue().getExpression().getOrderBy().getSqlSegment();
+            assertTrue(orderBy.contains("create_time"));
+            assertTrue(orderBy.contains("DESC"));
         }
     }
 

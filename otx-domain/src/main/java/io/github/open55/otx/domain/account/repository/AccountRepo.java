@@ -2,6 +2,8 @@ package io.github.open55.otx.domain.account.repository;
 
 import io.github.open55.otx.domain.account.entity.AccountEntity;
 
+import java.util.List;
+
 /**
  * 账户仓储接口，定义账户聚合根的持久化契约。
  * <p>
@@ -16,6 +18,13 @@ public interface AccountRepo {
      * @return 账户实体，不存在时返回 null
      */
     AccountEntity findByUid(Long uid);
+
+    /**
+     * 查询全部账户，按创建时间升序返回。
+     *
+     * @return 全部账户列表
+     */
+    List<AccountEntity> findAll();
 
     /**
      * 持久化新账户。

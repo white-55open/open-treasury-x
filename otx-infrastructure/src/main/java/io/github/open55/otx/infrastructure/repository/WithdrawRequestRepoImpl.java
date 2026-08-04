@@ -9,6 +9,7 @@ import io.github.open55.otx.infrastructure.po.WithdrawRequestPO;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -69,6 +70,36 @@ public class WithdrawRequestRepoImpl implements WithdrawRequestRepo {
         return withdrawRequestMapper.selectCount(
                 new LambdaQueryWrapper<WithdrawRequestPO>()
                         .eq(WithdrawRequestPO::getBizNo, bizNo)) > 0;
+    }
+
+    /**
+     * 按用户唯一标识查询该用户的全部提现请求，按创建时间降序返回（最新在前）。
+     *
+     * @param uid 用户唯一标识
+     * @return 提现请求列表
+     */
+    @Override
+    public List<WithdrawRequestEntity> findByUid(Long uid) {
+        List<WithdrawRequestPO> poList = withdrawRequestMapper.selectList(
+                new LambdaQueryWrapper<WithdrawRequestPO>()
+                        .eq(WithdrawRequestPO::getUid, uid)
+                        .orderByDesc(WithdrawRequestPO::getCreateTime));
+        return WithdrawRequestConverter.INSTANCE.po2EntityList(poList);
+    }
+
+    /**
+     * 查询全部提现请求，按创建时间降序返回（最新在前）。
+     * <p>
+     * 管理控制台提现单据列表的数据源，全量返回，数据量大时由上层引入分页。
+     *
+     * @return 全部提现请求列表
+     */
+    @Override
+    public List<WithdrawRequestEntity> findAll() {
+        List<WithdrawRequestPO> poList = withdrawRequestMapper.selectList(
+                new LambdaQueryWrapper<WithdrawRequestPO>()
+                        .orderByDesc(WithdrawRequestPO::getCreateTime));
+        return WithdrawRequestConverter.INSTANCE.po2EntityList(poList);
     }
 
     /**

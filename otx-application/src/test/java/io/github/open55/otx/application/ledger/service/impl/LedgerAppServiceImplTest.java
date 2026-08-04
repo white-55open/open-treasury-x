@@ -4,6 +4,7 @@ import io.github.open55.otx.application.ledger.assembler.LedgerAssembler;
 import io.github.open55.otx.application.ledger.dto.request.LedgerEntryRequestDTO;
 import io.github.open55.otx.application.ledger.dto.request.PostJournalRequestDTO;
 import io.github.open55.otx.application.ledger.dto.response.JournalDetailResponseDTO;
+import io.github.open55.otx.application.ledger.dto.response.JournalSummaryDTO;
 import io.github.open55.otx.common.exception.BizException;
 import io.github.open55.otx.domain.ledger.LedgerJournalEntity;
 import io.github.open55.otx.domain.ledger.enums.LedgerAccountCodeEnum;
@@ -12,6 +13,8 @@ import io.github.open55.otx.domain.ledger.enums.LedgerEntryTypeEnum;
 import io.github.open55.otx.domain.ledger.enums.LedgerJournalStatusEnum;
 import io.github.open55.otx.domain.ledger.repository.LedgerEntryRepo;
 import io.github.open55.otx.domain.ledger.repository.LedgerJournalRepo;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -32,9 +35,10 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -276,5 +280,48 @@ class LedgerAppServiceImplTest {
 
         req.setEntries(List.of(debit, credit));
         return req;
+    }
+
+    @Nested
+    @DisplayName("listJournals 查询全部凭证摘要 | list journal summaries")
+    class ListJournals {
+
+        /**
+         * 场景：存在凭证时按创建时间降序装配摘要。
+         * Scenario: journal summaries are assembled when journals exist.
+         * 断言主表字段（bizNo/bizType/status/totalAmount/postingDate/chainTxHash）透传，
+         * 且摘要 DTO 不携带分录（列表页保持轻量）。
+         */
+        @Test
+        @DisplayName("存在凭证时返回主表摘要且不含分录 | returns summaries without entries when journals exist")
+        void listJournals_withJournals_returnsSummaries() {
+            when(journalRepo.findAllOrderByCreateTimeDesc()).thenReturn(List.of(draftEntity()));
+
+            List<JournalSummaryDTO> result = service.listJournals();
+
+            assertEquals(1, result.size());
+            JournalSummaryDTO summary = result.get(0);
+            assertEquals("BIZ-001", summary.getBizNo());
+            assertEquals("DEPOSIT_ONCHAIN", summary.getBizType());
+            assertEquals("DRAFT", summary.getStatus());
+            assertEquals(BigDecimal.valueOf(200), summary.getTotalAmount());
+            assertEquals(LocalDate.now(), summary.getPostingDate());
+            assertEquals(null, summary.getChainTxHash());
+        }
+
+        /**
+         * 场景：无凭证时返回空列表。
+         * Scenario: empty list is returned when no journals exist.
+         * 断言不抛异常且列表为空。
+         */
+        @Test
+        @DisplayName("无凭证时返回空列表 | returns empty list when no journals exist")
+        void listJournals_empty_returnsEmptyList() {
+            when(journalRepo.findAllOrderByCreateTimeDesc()).thenReturn(List.of());
+
+            List<JournalSummaryDTO> result = service.listJournals();
+
+            assertTrue(result.isEmpty());
+        }
     }
 }

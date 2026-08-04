@@ -1,11 +1,17 @@
 package io.github.open55.otx.infrastructure.repository;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfo;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.core.toolkit.LambdaUtils;
 import io.github.open55.otx.domain.account.entity.AccountEntity;
 import io.github.open55.otx.infrastructure.converter.AccountConverter;
 import io.github.open55.otx.infrastructure.mapper.AccountMapper;
 import io.github.open55.otx.infrastructure.po.AccountPO;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,6 +40,14 @@ class AccountRepoImplTest {
 
     private static final long TEST_UID = 12345L;
 
+    @BeforeAll
+    static void installLambdaCache() {
+        // 预装 MyBatis-Plus 列缓存：纯 JUnit 环境下 LambdaQueryWrapper 解析列名需要 TableInfo
+        TableInfo tableInfo = TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), AccountPO.class);
+        LambdaUtils.installCache(tableInfo);
+    }
+
     @Mock
     private AccountMapper accountMapper;
 
@@ -41,6 +56,38 @@ class AccountRepoImplTest {
 
     @Captor
     private ArgumentCaptor<AccountPO> poCaptor;
+
+    @Captor
+    private ArgumentCaptor<LambdaQueryWrapper<AccountPO>> wrapperCaptor;
+
+    @Nested
+    @DisplayName("findAll 查询全部账户 | find all accounts")
+    class FindAll {
+
+        /**
+         * 场景：存在账户时按创建时间升序返回全部账户。
+         * Scenario: all accounts are returned ordered by create time ascending.
+         * 断言 Mapper.selectList 收到含 createTime 升序排序的 wrapper，且 PO 正确转 Entity。
+         */
+        @Test
+        @DisplayName("全部账户按创建时间升序返回 | all accounts ordered by create time ascending")
+        void findAll_returnsAllAccountsOrderedByCreateTime() {
+            AccountPO po = new AccountPO();
+            po.setId(1L);
+            po.setUid(TEST_UID);
+            po.setAvailableBalance(new BigDecimal("1000"));
+            when(accountMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(po));
+
+            List<AccountEntity> result = accountRepo.findAll();
+
+            assertEquals(1, result.size());
+            assertEquals(TEST_UID, result.get(0).getUid());
+            verify(accountMapper).selectList(wrapperCaptor.capture());
+            String orderBy = wrapperCaptor.getValue().getExpression().getOrderBy().getSqlSegment();
+            assertTrue(orderBy.contains("create_time"));
+            assertTrue(orderBy.contains("ASC"));
+        }
+    }
 
     @Nested
     @DisplayName("findByUid 按用户查询 | find by uid")

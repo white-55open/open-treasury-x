@@ -9,6 +9,8 @@ import io.github.open55.otx.infrastructure.po.AccountPO;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 /**
  * 账户仓储实现，通过 MyBatis-Plus 完成账户持久化操作。
  */
@@ -28,6 +30,20 @@ public class AccountRepoImpl implements AccountRepo {
         AccountPO po = accountMapper.selectOne(new LambdaQueryWrapper<AccountPO>()
                 .eq(AccountPO::getUid, uid));
         return AccountConverter.INSTANCE.po2Entity(po);
+    }
+
+    /**
+     * 查询全部账户，按创建时间升序返回，PO 转 Entity 后返回。
+     * <p>
+     * 管理控制台账户总览的数据源，全量返回，数据量大时由上层引入分页。
+     *
+     * @return 全部账户列表
+     */
+    @Override
+    public List<AccountEntity> findAll() {
+        List<AccountPO> poList = accountMapper.selectList(new LambdaQueryWrapper<AccountPO>()
+                .orderByAsc(AccountPO::getCreateTime));
+        return AccountConverter.INSTANCE.po2EntityList(poList);
     }
 
     /**

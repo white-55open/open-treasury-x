@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>凭证查看 - OTX 管理控制台</title>
+    <style>
+        body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; margin: 0; background: #f5f6f8; color: #333; }
+        header { background: #1f2d3d; color: #fff; padding: 16px 24px; }
+        header h1 { margin: 0; font-size: 20px; }
+        header p.notice { margin: 6px 0 0; font-size: 12px; color: #ffc069; }
+        nav.bar { background: #2c3e50; padding: 8px 24px; }
+        nav.bar a { color: #cfd8e3; text-decoration: none; margin-right: 20px; font-size: 13px; }
+        nav.bar a:hover { color: #fff; }
+        main { padding: 24px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden;
+                box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 13px; }
+        th { background: #f0f2f5; font-weight: 600; }
+        tr:hover td { background: #fafbfc; }
+        .empty { padding: 24px; text-align: center; color: #999; }
+        .status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+        .status-DRAFT { background: #fff3cd; color: #856404; }
+        .status-POSTED { background: #d4edda; color: #155724; }
+        .status-REVERSED { background: #e2e3e5; color: #383d41; }
+        a.link { color: #409eff; text-decoration: none; }
+        a.link:hover { text-decoration: underline; }
+        code { font-family: Consolas, monospace; font-size: 12px; color: #555; }
+        footer { padding: 16px 24px; font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>凭证查看</h1>
+    <p class="notice">内部运维工具，仅限内网/本地使用，上线前须网关认证</p>
+</header>
+<nav class="bar">
+    <a th:href="@{/admin}">首页</a>
+    <a th:href="@{/admin/accounts}">账户总览</a>
+    <a th:href="@{/admin/withdraws}">提现单据</a>
+    <a th:href="@{/admin/journals}">凭证查看</a>
+</nav>
+<main>
+    <table>
+        <thead>
+        <tr>
+            <th>业务号</th>
+            <th>业务类型</th>
+            <th>状态</th>
+            <th>总金额</th>
+            <th>记账日期</th>
+            <th>链上交易哈希</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="j : ${journals}">
+            <td><code th:text="${j.bizNo}">-</code></td>
+            <td th:text="${j.bizType}">-</td>
+            <td>
+                <span class="status" th:classappend="'status-' + ${j.status}" th:text="${j.status}">-</span>
+            </td>
+            <td th:text="${#numbers.formatDecimal(j.totalAmount, 1, 2)}">0.00</td>
+            <td th:text="${j.postingDate}">-</td>
+            <td><code th:text="${j.chainTxHash} ?: '链下业务'">-</code></td>
+            <td>
+                <a class="link" th:href="@{/admin/journals/{bizNo}(bizNo=${j.bizNo})}">查看分录</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="empty" th:if="${#lists.isEmpty(journals)}">暂无凭证数据</div>
+</main>
+<footer>OTX（open-treasury-x）Web3 财务管理中间件 · 管理控制台</footer>
+</body>
+</html>

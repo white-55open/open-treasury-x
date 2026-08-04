@@ -1,5 +1,6 @@
 package io.github.open55.otx.application.account.service.impl;
 
+import io.github.open55.otx.application.account.dto.response.AccountSummaryDTO;
 import io.github.open55.otx.application.account.dto.response.GetAccountResponse;
 import io.github.open55.otx.application.deposit.dto.ChangeAmountRequest;
 import io.github.open55.otx.application.fundflow.service.FundFlowAppService;
@@ -23,6 +24,7 @@ import org.springframework.dao.DuplicateKeyException;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -353,6 +355,44 @@ class AccountAppServiceImplTest {
             req.setBizNo(BIZ_NO);
             req.setFundFlowType(type);
             return req;
+        }
+    }
+
+    @Nested
+    @DisplayName("listAccounts 查询全部账户摘要 | list account summaries")
+    class ListAccounts {
+
+        /**
+         * 场景：存在账户时按创建时间升序装配摘要。
+         * Scenario: account summaries are assembled when accounts exist.
+         * 断言 uid / 可用余额 / 冻结余额从实体透传到摘要 DTO。
+         */
+        @Test
+        @DisplayName("存在账户时返回装配后的摘要 | returns summaries when accounts exist")
+        void listAccounts_withAccounts_returnsSummaries() {
+            when(accountRepo.findAll()).thenReturn(List.of(createAccountEntity()));
+
+            List<AccountSummaryDTO> result = service.listAccounts();
+
+            assertEquals(1, result.size());
+            assertEquals(TEST_UID, result.get(0).getUid());
+            assertEquals(BALANCE_1000, result.get(0).getAvailableBalance());
+            assertEquals(BigDecimal.ZERO, result.get(0).getFrozenBalance());
+        }
+
+        /**
+         * 场景：无账户时返回空列表。
+         * Scenario: empty list is returned when no accounts exist.
+         * 断言不抛异常且列表为空。
+         */
+        @Test
+        @DisplayName("无账户时返回空列表 | returns empty list when no accounts exist")
+        void listAccounts_empty_returnsEmptyList() {
+            when(accountRepo.findAll()).thenReturn(List.of());
+
+            List<AccountSummaryDTO> result = service.listAccounts();
+
+            assertTrue(result.isEmpty());
         }
     }
 }

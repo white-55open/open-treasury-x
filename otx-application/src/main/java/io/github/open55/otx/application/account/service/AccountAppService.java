@@ -1,9 +1,11 @@
 package io.github.open55.otx.application.account.service;
 
+import io.github.open55.otx.application.account.dto.response.AccountSummaryDTO;
 import io.github.open55.otx.application.account.dto.response.GetAccountResponse;
 import io.github.open55.otx.application.deposit.dto.ChangeAmountRequest;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 账户应用服务接口，定义账户管理的用例边界。
@@ -41,6 +43,15 @@ public interface AccountAppService {
      * @return 账户详情响应
      */
     GetAccountResponse getByUid(Long uid);
+
+    /**
+     * 查询全部账户摘要，按创建时间升序返回。
+     * <p>
+     * 只读查询，数据量大时后续引入分页；管理控制台账户总览的数据源。
+     *
+     * @return 账户摘要列表
+     */
+    List<AccountSummaryDTO> listAccounts();
 
     /**
      * 变更金额并记录资金流水（含幂等处理）。

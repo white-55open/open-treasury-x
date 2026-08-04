@@ -6,6 +6,8 @@ import org.mapstruct.Builder;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
+import java.util.List;
+
 /**
  * AccountPO 与 AccountEntity 之间的双向转换器。
  */
@@ -20,6 +22,14 @@ public interface AccountConverter {
      * @return 领域实体
      */
     AccountEntity po2Entity(AccountPO po);
+
+    /**
+     * List&lt;AccountPO&gt; → List&lt;AccountEntity&gt;，逐条转换。
+     *
+     * @param poList 持久化对象列表
+     * @return 领域实体列表
+     */
+    List<AccountEntity> po2EntityList(List<AccountPO> poList);
 
     /**
      * AccountEntity → AccountPO，同名字段自动映射。

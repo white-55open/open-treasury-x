@@ -9,6 +9,7 @@ import io.github.open55.otx.infrastructure.po.LedgerJournalPO;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -69,6 +70,22 @@ public class LedgerJournalRepoImpl implements LedgerJournalRepo {
         return ledgerJournalMapper.selectCount(
                 new LambdaQueryWrapper<LedgerJournalPO>()
                         .eq(LedgerJournalPO::getBizNo, bizNo)) > 0;
+    }
+
+    /**
+     * 查询全部凭证，只查主表（不含分录），按创建时间降序返回（最新在前）。
+     * <p>
+     * 管理控制台凭证列表的数据源，全量返回，数据量大时由上层引入分页；
+     * 分录详情请走 {@link #findByBizNo(String)}，避免列表 N+1 加载分录。
+     *
+     * @return 凭证列表
+     */
+    @Override
+    public List<LedgerJournalEntity> findAllOrderByCreateTimeDesc() {
+        List<LedgerJournalPO> poList = ledgerJournalMapper.selectList(
+                new LambdaQueryWrapper<LedgerJournalPO>()
+                        .orderByDesc(LedgerJournalPO::getCreateTime));
+        return LedgerJournalConverter.INSTANCE.po2EntityList(poList);
     }
 
     /**

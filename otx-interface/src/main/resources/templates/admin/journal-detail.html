@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>凭证详情 - OTX 管理控制台</title>
+    <style>
+        body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; margin: 0; background: #f5f6f8; color: #333; }
+        header { background: #1f2d3d; color: #fff; padding: 16px 24px; }
+        header h1 { margin: 0; font-size: 20px; }
+        header p.notice { margin: 6px 0 0; font-size: 12px; color: #ffc069; }
+        nav.bar { background: #2c3e50; padding: 8px 24px; }
+        nav.bar a { color: #cfd8e3; text-decoration: none; margin-right: 20px; font-size: 13px; }
+        nav.bar a:hover { color: #fff; }
+        main { padding: 24px; }
+        .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+        .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; margin-bottom: 16px; font-size: 14px; }
+        .meta b { color: #666; font-weight: 600; margin-right: 8px; }
+        .status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+        .status-DRAFT { background: #fff3cd; color: #856404; }
+        .status-POSTED { background: #d4edda; color: #155724; }
+        .status-REVERSED { background: #e2e3e5; color: #383d41; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 13px; }
+        th { background: #f0f2f5; font-weight: 600; }
+        tr:hover td { background: #fafbfc; }
+        tr.total td { background: #f7f9fc; font-weight: 600; }
+        .balanced { color: #27ae60; font-weight: 600; }
+        .unbalanced { color: #c0392b; font-weight: 600; }
+        .debit { color: #c0392b; }
+        .credit { color: #27ae60; }
+        code { font-family: Consolas, monospace; font-size: 12px; color: #555; }
+        footer { padding: 16px 24px; font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>凭证详情</h1>
+    <p class="notice">内部运维工具，仅限内网/本地使用，上线前须网关认证</p>
+</header>
+<nav class="bar">
+    <a th:href="@{/admin}">首页</a>
+    <a th:href="@{/admin/accounts}">账户总览</a>
+    <a th:href="@{/admin/withdraws}">提现单据</a>
+    <a th:href="@{/admin/journals}">凭证查看</a>
+</nav>
+<main class="card">
+    <h2>凭证信息</h2>
+    <div class="meta">
+        <div><b>业务号：</b><code th:text="${journal.bizNo}">-</code></div>
+        <div><b>业务类型：</b><span th:text="${journal.bizType}">-</span></div>
+        <div><b>状态：</b><span class="status" th:classappend="'status-' + ${journal.status}" th:text="${journal.status}">-</span></div>
+        <div><b>币种：</b><span th:text="${journal.currency}">-</span></div>
+        <div><b>记账日期：</b><span th:text="${journal.postingDate}">-</span></div>
+        <div><b>描述：</b><span th:text="${journal.description}">-</span></div>
+        <div><b>链 ID：</b><span th:text="${journal.chainId} ?: '链下业务'">-</span></div>
+        <div><b>交易哈希：</b><code th:text="${journal.chainTxHash} ?: '链下业务'">-</code></div>
+    </div>
+
+    <h2>借贷分录</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>会计科目</th>
+            <th>借贷方向</th>
+            <th>金额</th>
+            <th>用户 ID</th>
+            <th>交易对手</th>
+            <th>记账后余额</th>
+            <th>备注</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="e : ${journal.entries}">
+            <td th:text="${e.accountCode}">-</td>
+            <td>
+                <span th:switch="${e.entryType}">
+                    <span th:case="'DEBIT'" class="debit">借</span>
+                    <span th:case="'CREDIT'" class="credit">贷</span>
+                    <span th:case="*" th:text="${e.entryType}">-</span>
+                </span>
+            </td>
+            <td th:text="${#numbers.formatDecimal(e.amount, 1, 2)}">0.00</td>
+            <td th:text="${e.uid} ?: '平台'">-</td>
+            <td><code th:text="${e.counterparty} ?: '-'">-</code></td>
+            <td th:text="${e.balanceAfter != null ? #numbers.formatDecimal(e.balanceAfter, 1, 2) : '-'}">-</td>
+            <td th:text="${e.remark} ?: '-'">-</td>
+        </tr>
+        </tbody>
+        <tfoot>
+        <tr class="total">
+            <td colspan="2">借方合计</td>
+            <td th:text="${#numbers.formatDecimal(debitTotal, 1, 2)}">0.00</td>
+            <td colspan="4"></td>
+        </tr>
+        <tr class="total">
+            <td colspan="2">贷方合计</td>
+            <td th:text="${#numbers.formatDecimal(creditTotal, 1, 2)}">0.00</td>
+            <td colspan="4"></td>
+        </tr>
+        <tr class="total">
+            <td colspan="2">借贷平衡校验</td>
+            <td colspan="5">
+                <span class="balanced" th:if="${balanced}">✓ 借贷平衡</span>
+                <span class="unbalanced" th:unless="${balanced}">✗ 借贷不平衡（异常）</span>
+            </td>
+        </tr>
+        </tfoot>
+    </table>
+</main>
+<footer>OTX（open-treasury-x）Web3 财务管理中间件 · 管理控制台</footer>
+</body>
+</html>

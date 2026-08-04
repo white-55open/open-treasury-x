@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>提现单据 - OTX 管理控制台</title>
+    <style>
+        body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; margin: 0; background: #f5f6f8; color: #333; }
+        header { background: #1f2d3d; color: #fff; padding: 16px 24px; }
+        header h1 { margin: 0; font-size: 20px; }
+        header p.notice { margin: 6px 0 0; font-size: 12px; color: #ffc069; }
+        nav.bar { background: #2c3e50; padding: 8px 24px; }
+        nav.bar a { color: #cfd8e3; text-decoration: none; margin-right: 20px; font-size: 13px; }
+        nav.bar a:hover { color: #fff; }
+        main { padding: 24px; }
+        .error { background: #fef0f0; border: 1px solid #f5c6c6; color: #c0392b; border-radius: 6px;
+                 padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden;
+                box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 13px; }
+        th { background: #f0f2f5; font-weight: 600; }
+        tr:hover td { background: #fafbfc; }
+        .empty { padding: 24px; text-align: center; color: #999; }
+        .status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+        .status-PENDING { background: #fff3cd; color: #856404; }
+        .status-BROADCASTED { background: #d1ecf1; color: #0c5460; }
+        .status-SETTLED { background: #d4edda; color: #155724; }
+        .status-FAILED { background: #f8d7da; color: #721c24; }
+        .status-CANCELLED { background: #e2e3e5; color: #383d41; }
+        form { display: inline; }
+        button { padding: 4px 12px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; font-size: 13px; }
+        button.settle { background: #409eff; color: #fff; border-color: #409eff; }
+        button.settle:hover { background: #337ecc; }
+        button.cancel { background: #fff; color: #e6a23c; border-color: #e6a23c; }
+        button.cancel:hover { background: #e6a23c; color: #fff; }
+        code { font-family: Consolas, monospace; font-size: 12px; color: #555; }
+        footer { padding: 16px 24px; font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>提现单据</h1>
+    <p class="notice">内部运维工具，仅限内网/本地使用，上线前须网关认证 · 结算/取消操作等价于调用对应 API，请谨慎操作</p>
+</header>
+<nav class="bar">
+    <a th:href="@{/admin}">首页</a>
+    <a th:href="@{/admin/accounts}">账户总览</a>
+    <a th:href="@{/admin/withdraws}">提现单据</a>
+    <a th:href="@{/admin/journals}">凭证查看</a>
+</nav>
+<main>
+    <div class="error" th:if="${errorMessage}" th:text="${errorMessage}">操作失败提示</div>
+    <table>
+        <thead>
+        <tr>
+            <th>业务号</th>
+            <th>用户 ID</th>
+            <th>金额</th>
+            <th>币种</th>
+            <th>链 ID</th>
+            <th>接收地址</th>
+            <th>交易哈希</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="w : ${withdraws}">
+            <td><code th:text="${w.bizNo}">-</code></td>
+            <td th:text="${w.uid}">0</td>
+            <td th:text="${#numbers.formatDecimal(w.amount, 1, 2)}">0.00</td>
+            <td th:text="${w.currency}">-</td>
+            <td th:text="${w.chainId}">-</td>
+            <td><code th:text="${w.toAddress}">-</code></td>
+            <td><code th:text="${w.txHash} ?: '未广播'">-</code></td>
+            <td>
+                <span class="status" th:classappend="'status-' + ${w.status}" th:text="${w.status}">-</span>
+            </td>
+            <td>
+                <form th:action="@{/admin/withdraws/{bizNo}/confirm-settle(bizNo=${w.bizNo})}" method="post">
+                    <button type="submit" class="settle">结算</button>
+                </form>
+                <form th:action="@{/admin/withdraws/{bizNo}/cancel(bizNo=${w.bizNo})}" method="post">
+                    <button type="submit" class="cancel">取消</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="empty" th:if="${#lists.isEmpty(withdraws)}">暂无提现单据</div>
+</main>
+<footer>OTX（open-treasury-x）Web3 财务管理中间件 · 管理控制台</footer>
+</body>
+</html>

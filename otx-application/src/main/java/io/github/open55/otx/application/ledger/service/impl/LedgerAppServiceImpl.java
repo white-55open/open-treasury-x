@@ -4,6 +4,7 @@ import cn.hutool.core.lang.Assert;
 import io.github.open55.otx.application.ledger.assembler.LedgerAssembler;
 import io.github.open55.otx.application.ledger.dto.request.PostJournalRequestDTO;
 import io.github.open55.otx.application.ledger.dto.response.JournalDetailResponseDTO;
+import io.github.open55.otx.application.ledger.dto.response.JournalSummaryDTO;
 import io.github.open55.otx.application.ledger.service.LedgerAppService;
 import io.github.open55.otx.common.exception.BizErrorEnum;
 import io.github.open55.otx.common.exception.BizException;
@@ -236,5 +237,37 @@ public class LedgerAppServiceImpl implements LedgerAppService {
         // 更新状态，乐观锁版本冲突时抛出 OptimisticLockException 触发重试
         journalRepo.update(journal);
         return LedgerAssembler.INSTANCE.toResponse(journal);
+    }
+
+    /**
+     * 查询全部凭证摘要（不含分录），按创建时间降序返回（最新在前）。
+     * <p>
+     * 只读查询，数据量大时后续引入分页；管理控制台凭证列表的数据源，
+     * 分录详情走 {@link #findByBizNo(String)}（含分录）。
+     *
+     * @return 凭证摘要列表
+     */
+    @Override
+    public List<JournalSummaryDTO> listJournals() {
+        return journalRepo.findAllOrderByCreateTimeDesc().stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /**
+     * 凭证实体装配为凭证摘要 DTO（不含分录），枚举字段转字符串。
+     *
+     * @param journal 凭证实体
+     * @return 凭证摘要 DTO
+     */
+    private JournalSummaryDTO toSummary(LedgerJournalEntity journal) {
+        JournalSummaryDTO dto = new JournalSummaryDTO();
+        dto.setBizNo(journal.getBizNo());
+        dto.setBizType(journal.getBizType() == null ? null : journal.getBizType().name());
+        dto.setStatus(journal.getStatus() == null ? null : journal.getStatus().name());
+        dto.setTotalAmount(journal.getTotalAmount());
+        dto.setPostingDate(journal.getPostingDate());
+        dto.setChainTxHash(journal.getChainTxHash());
+        return dto;
     }
 }

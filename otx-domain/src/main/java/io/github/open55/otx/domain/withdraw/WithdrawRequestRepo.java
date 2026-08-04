@@ -1,5 +1,6 @@
 package io.github.open55.otx.domain.withdraw;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -24,6 +25,21 @@ public interface WithdrawRequestRepo {
      * @return 提现请求聚合根，不存在时返回 Optional.empty()
      */
     Optional<WithdrawRequestEntity> findByBizNo(String bizNo);
+
+    /**
+     * 按用户唯一标识查询该用户的全部提现请求，按创建时间降序返回（最新在前）。
+     *
+     * @param uid 用户唯一标识
+     * @return 提现请求列表
+     */
+    List<WithdrawRequestEntity> findByUid(Long uid);
+
+    /**
+     * 查询全部提现请求，按创建时间降序返回（最新在前）。
+     *
+     * @return 全部提现请求列表
+     */
+    List<WithdrawRequestEntity> findAll();
 
     /**
      * 判断指定业务流水号是否已存在。

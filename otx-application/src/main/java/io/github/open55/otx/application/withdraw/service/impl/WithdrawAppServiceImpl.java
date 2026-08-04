@@ -8,6 +8,7 @@ import io.github.open55.otx.application.ledger.dto.request.PostJournalRequestDTO
 import io.github.open55.otx.application.ledger.service.LedgerAppService;
 import io.github.open55.otx.application.withdraw.dto.request.WithdrawRequestDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawBroadcastResponseDTO;
+import io.github.open55.otx.application.withdraw.dto.response.WithdrawRequestViewDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawSettleResponseDTO;
 import io.github.open55.otx.application.withdraw.dto.response.WithdrawStatusResponseDTO;
 import io.github.open55.otx.application.withdraw.service.WithdrawAppService;
@@ -964,6 +965,40 @@ public class WithdrawAppServiceImpl implements WithdrawAppService {
         creditEntry.setRemark(null);
 
         dto.setEntries(List.of(debitEntry, creditEntry));
+        return dto;
+    }
+
+    /**
+     * 查询全部提现请求视图，按创建时间降序返回（最新在前）。
+     * <p>
+     * 只读查询，数据量大时后续引入分页；管理控制台提现单据列表的数据源。
+     *
+     * @return 提现请求视图列表
+     */
+    @Override
+    public List<WithdrawRequestViewDTO> listRequests() {
+        return withdrawRequestRepo.findAll().stream()
+                .map(this::toView)
+                .toList();
+    }
+
+    /**
+     * 提现请求实体装配为视图 DTO，状态枚举转字符串。
+     *
+     * @param entity 提现请求实体
+     * @return 提现请求视图 DTO
+     */
+    private WithdrawRequestViewDTO toView(WithdrawRequestEntity entity) {
+        WithdrawRequestViewDTO dto = new WithdrawRequestViewDTO();
+        dto.setBizNo(entity.getBizNo());
+        dto.setUid(entity.getUid());
+        dto.setAmount(entity.getAmount());
+        dto.setCurrency(entity.getCurrency());
+        dto.setChainId(entity.getChainId());
+        dto.setToAddress(entity.getToAddress());
+        dto.setTokenAddress(entity.getTokenAddress());
+        dto.setTxHash(entity.getTxHash());
+        dto.setStatus(entity.getStatus().name());
         return dto;
     }
 }

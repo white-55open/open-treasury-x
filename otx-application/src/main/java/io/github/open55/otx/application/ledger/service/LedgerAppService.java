@@ -2,6 +2,9 @@ package io.github.open55.otx.application.ledger.service;
 
 import io.github.open55.otx.application.ledger.dto.request.PostJournalRequestDTO;
 import io.github.open55.otx.application.ledger.dto.response.JournalDetailResponseDTO;
+import io.github.open55.otx.application.ledger.dto.response.JournalSummaryDTO;
+
+import java.util.List;
 
 /**
  * Ledger 应用服务入站端口，定义过账与查询两个用例。
@@ -53,4 +56,14 @@ public interface LedgerAppService {
      *                                                          状态非 DRAFT 抛 LEDGER_JOURNAL_NOT_DRAFT
      */
     JournalDetailResponseDTO postJournalByBizNo(String bizNo);
+
+    /**
+     * 查询全部凭证摘要（不含分录），按创建时间降序返回（最新在前）。
+     * <p>
+     * 只读查询，数据量大时后续引入分页；管理控制台凭证列表的数据源，
+     * 分录详情请走 {@link #findByBizNo(String)}。
+     *
+     * @return 凭证摘要列表
+     */
+    List<JournalSummaryDTO> listJournals();
 }
