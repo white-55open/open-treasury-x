@@ -132,3 +132,30 @@
 | 借贷平衡校验 | 每日定时运行。汇总所有科目的借方和贷方发生额，验证合计是否相等。不平衡时触发告警。 | ❌ |
 | 自动补账 | 对账发现不一致时，系统自动生成调整凭证或冲销凭证修复差异。人工确认模式可选。 | ❌ |
 | 对账报告推送 | 对账完成后输出报告，不一致项通过告警方式通知运维人员。 | ❌ |
+
+---
+
+## 一键体验（模拟上游自动演绎）
+
+仓库附带独立模块 [`mock-upstream/`](mock-upstream/)（**不加入主工程 Maven reactor**，仅通过 HTTP 调用 OTX REST API，模拟"链上事件源 + 业务系统调用方"）。启动后自动演绎完整业务故事线：**充值**（链上确认数增长达标 → `POST /deposit` 入账）→ **提现结算**（冻结 → 广播 → 模拟确认达标 → 确认结算）→ **提现取消**（冻结 → 取消解冻），全程中文日志输出步骤说明、调用端点、响应结果与余额快照。
+
+**启动顺序：**
+
+1. **启动 MySQL 与 Redis**（dev 环境依赖，见 `otx-starter/src/main/resources/application-dev.yaml`）：
+   - MySQL：`localhost:3307`（库名 `treasury_test`）
+   - Redis：`localhost:6380`
+2. **启动 OTX**（dev profile，端口 8003）：
+   ```bash
+   .\mvnw.cmd -pl otx-starter spring-boot:run
+   ```
+3. **启动模拟上游**（端口 8004，自动演绎故事线，约 1 分钟跑完）：
+   ```bash
+   cd mock-upstream
+   .\mvnw.cmd spring-boot:run
+   ```
+   > mock-upstream 为独立应用，自带 mvnw，不参与主工程构建；可用环境变量 `OTX_BASE_URL` 覆盖 OTX 地址。
+4. **打开管理控制台查看落账**：`http://localhost:8003/admin`（账户余额、资金流水、总账凭证与提现单据随故事线逐步联动）。
+
+**dev 环境说明（广播依赖）：** OTX dev 的提现广播依赖本地 keystore 签名（`classpath:keystore/dev-withdrawer.json`）与链上 RPC（`ALCHEMY_KEY` 环境变量）。若两者未准备，充值故事不受影响（充值入账走 Web3j RPC 确认，RPC 不可用时 OTX 会 fail-safe 拒绝入账，模拟器日志会展示该路径）；提现广播将返回 `FAILED` 状态——模拟器会打印实际结果并继续演绎取消故事线，这本身也是"真实集成行为"的展示。准备 keystore 并注入 `OTX_KEYSTORE_PASSWORD` / `OTX_HOT_WALLET_ADDRESS` / `ALCHEMY_KEY` 后可演示完整广播成功路径。
+
+**幂等验证：** 充值故事内置"同一 bizNo 重复调用 `POST /deposit`"步骤，OTX 幂等兜底保证不重复入账，日志可见重复调用返回相同结果。

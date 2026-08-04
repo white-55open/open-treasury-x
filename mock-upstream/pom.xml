@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        独立 Spring Boot 应用：模拟上游（mock-upstream）。
+        注意：本工程刻意【不加入】仓库根 open-treasury-x/pom.xml 的 <modules>，
+        以保持"外部调用方"的物理隔离——只通过 HTTP 调用 OTX REST API，
+        不 import 任何 otx-* 模块类。可独立 mvnw spring-boot:run 启动。
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.6</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+    <groupId>io.github.open55</groupId>
+    <artifactId>mock-upstream</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>mock-upstream</name>
+    <description>模拟上游与链上事件模拟器：通过 HTTP 调用 OTX REST API 自动演绎充值/提现完整业务故事线</description>
+
+    <properties>
+        <java.version>21</java.version>
+    </properties>
+
+    <dependencies>
+        <!--
+            Web MVC starter：提供 RestClient（spring-web）调用 OTX + Jackson 解析响应。
+            Spring Boot 4 已将 web starter 拆分为 spring-boot-starter-webmvc。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <!-- Lombok：简化模拟器样板代码（@Slf4j/@Data 等） -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
