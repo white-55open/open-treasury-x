@@ -8,6 +8,8 @@ import org.apache.ibatis.exceptions.PersistenceException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.MyBatisSystemException;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -47,6 +49,20 @@ class GlobalExceptionHandlerTest {
         Result<Void> result = handler.handleException(ex);
 
         assertEquals("500", result.getCode());
+    }
+
+    /**
+     * 静态资源/未映射路径不存在（如浏览器自动请求 /favicon.ico）时按 404 返回，
+     * 不视为服务器内部错误，避免 ERROR 日志刷屏。
+     */
+    @Test
+    @DisplayName("NoResourceFoundException 返回 404 | missing static resource returns 404")
+    void handleNoResourceFound_returns404() {
+        NoResourceFoundException ex = new NoResourceFoundException(HttpMethod.GET, "/favicon.ico", "");
+
+        Result<Void> result = handler.handleNoResourceFound(ex);
+
+        assertEquals("404", result.getCode());
     }
 
     /**

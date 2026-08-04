@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -27,6 +28,19 @@ public class GlobalExceptionHandler {
         return Result.fail(ex.getErrorCode(), ex.getMessage(), null);
     }
 
+
+    /**
+     * 静态资源/未映射路径不存在（如浏览器自动请求 /favicon.ico），
+     * 按 404 返回，不视为服务器内部错误（避免 ERROR 日志刷屏）。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Result<Void> handleNoResourceFound(NoResourceFoundException ex) {
+        // 资源不存在属于客户端请求问题，记录 DEBUG 级即可
+        log.debug("Static resource or mapped path not found: {}", ex.getResourcePath());
+        return Result.fail(String.valueOf(HttpStatus.NOT_FOUND.value()),
+                HttpStatus.NOT_FOUND.toString(), null);
+    }
 
     /**
      * http 500
