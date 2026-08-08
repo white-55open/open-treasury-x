@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>模拟用户中心 - mock-upstream</title>
+    <style>
+        body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; margin: 0; background: #f5f6f8; color: #333; }
+        header { background: #1f2d3d; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { margin: 0; font-size: 20px; }
+        header p.notice { margin: 6px 0 0; font-size: 12px; color: #ffc069; }
+        main { max-width: 1080px; margin: 0 auto; padding: 24px; }
+        .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
+        .card h2 { margin: 0 0 16px; font-size: 16px; color: #1f2d3d; }
+        .assets { display: flex; gap: 16px; }
+        .asset-box { flex: 1; background: #f8fafc; border-radius: 8px; padding: 16px; text-align: center; }
+        .asset-box .label { font-size: 13px; color: #888; }
+        .asset-box .value { font-size: 24px; font-weight: bold; margin-top: 8px; color: #1f2d3d; }
+        .forms { display: flex; gap: 16px; }
+        .form-row { display: flex; align-items: center; gap: 8px; }
+        .form-row label { font-size: 14px; }
+        .form-row input { padding: 8px 10px; border: 1px solid #d5dbe3; border-radius: 6px; font-size: 14px; width: 140px; }
+        button { padding: 9px 16px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+        .btn-primary { background: #2f6fed; color: #fff; }
+        .btn-primary:hover { background: #2458c4; }
+        .btn-process { background: #16a34a; color: #fff; font-size: 15px; padding: 12px 24px; }
+        .btn-process:hover { background: #12863c; }
+        .btn-danger { background: #dc2626; color: #fff; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-mini { padding: 5px 12px; font-size: 12px; border-radius: 4px; }
+        .btn-gray { background: #e5e9ef; color: #555; }
+        .btn-gray:hover { background: #d3d9e2; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; padding: 10px 8px; background: #f8fafc; color: #666; font-weight: normal; border-bottom: 1px solid #e5e9ef; }
+        td { padding: 10px 8px; border-bottom: 1px solid #f0f2f5; }
+        .tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; }
+        .tag-pending { background: #fef3c7; color: #92400e; }
+        .tag-done { background: #dcfce7; color: #166534; }
+        .tag-cancel { background: #fee2e2; color: #991b1b; }
+        .tag-info { background: #e0e7ff; color: #3730a3; }
+        .log-list { max-height: 320px; overflow-y: auto; font-size: 13px; }
+        .log-item { padding: 8px 10px; border-bottom: 1px solid #f0f2f5; line-height: 1.6; }
+        .log-item .actor { color: #2f6fed; font-weight: bold; }
+        .log-item .endpoint { color: #888; font-family: Consolas, monospace; font-size: 12px; }
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+        .alert-error { background: #fee2e2; color: #991b1b; }
+        .alert-success { background: #dcfce7; color: #166534; }
+        .summary-line { font-size: 13px; color: #555; line-height: 1.8; }
+        .empty { color: #999; text-align: center; padding: 24px; font-size: 14px; }
+        footer { padding: 16px 24px; font-size: 12px; color: #999; text-align: center; }
+        .block-info { font-size: 12px; color: #888; margin-top: 8px; }
+    </style>
+</head>
+<body>
+<header>
+    <div>
+        <h1>模拟用户中心</h1>
+        <p class="notice">mock-upstream · 模拟外部用户视角操作 OTX（:8004 → OTX :8003）</p>
+    </div>
+    <div class="form-row">
+        <form th:action="@{/users/{uid}/select(uid=${currentUid})}" method="post" style="display:none" id="selectForm"></form>
+        <form th:action="@{/users}" method="post">
+            <input type="number" name="uid" placeholder="uid（留空自动生成）" min="1">
+            <button type="submit" class="btn-primary">创建用户</button>
+        </form>
+    </div>
+</header>
+<main>
+    <!-- 用户切换 -->
+    <div class="card">
+        <h2>👤 当前用户
+            <span th:if="${currentUid != null}" th:text="'# ' + ${currentUid}"></span>
+            <span th:if="${currentUid == null}" style="color:#999;font-size:13px">（未创建，请先创建用户）</span>
+        </h2>
+        <form th:action="@{/users/{uid}/select(uid=${user.uid})}" method="post" th:each="user : ${users}"
+              style="display:inline-block; margin-right:8px">
+            <button type="submit" class="btn-mini btn-gray" th:text="'切换 #' + ${user.uid}"></button>
+        </form>
+        <div class="block-info">模拟链区块高度：#<span th:text="${blockHeight}"></span> · 入账所需确认数：<span th:text="${requiredConfirmations}"></span></div>
+    </div>
+
+    <!-- 操作结果提示 -->
+    <div th:if="${errorMessage}" class="alert alert-error" th:text="${errorMessage}"></div>
+    <div th:if="${summary != null && summary.total() > 0}" class="alert alert-success">
+        <div class="summary-line">
+            ⚙ 一键处理完成：充值入账 <b th:text="${summary.depositBooked}"></b> 笔（失败 <span th:text="${summary.depositFailed}"></span>）、
+            提现结算 <b th:text="${summary.settled}"></b> 笔（失败 <span th:text="${summary.settleFailed}"></span>）、
+            提现取消 <b th:text="${summary.cancelled}"></b> 笔（失败 <span th:text="${summary.cancelFailed}"></span>）
+            <span th:if="${summary.remaining() > 0}">—— 剩余 <b th:text="${summary.remaining()}"></b> 项待重试</span>
+        </div>
+    </div>
+
+    <th:block th:if="${currentUid != null}">
+        <!-- 资产卡片 -->
+        <div class="card">
+            <h2>💼 我的资产</h2>
+            <div class="assets">
+                <div class="asset-box">
+                    <div class="label">可用余额（USDT）</div>
+                    <div class="value" th:text="${account != null ? account.availableBalance() : '—'}">-</div>
+                </div>
+                <div class="asset-box">
+                    <div class="label">冻结余额（USDT）</div>
+                    <div class="value" th:text="${account != null ? account.frozenBalance() : '—'}">-</div>
+                </div>
+            </div>
+            <div class="block-info" th:if="${account == null}">资产查询失败（OTX 未启动？）——业务动作仍可发起，落账需 OTX 在线</div>
+        </div>
+
+        <!-- 充值 / 提现表单 -->
+        <div class="card">
+            <h2>💰 资金操作</h2>
+            <div class="forms">
+                <form th:action="@{/deposits}" method="post" class="form-row">
+                    <label>充值</label>
+                    <input type="number" name="amount" step="0.01" min="0.01" placeholder="金额（USDT）" required>
+                    <button type="submit" class="btn-primary">发起充值</button>
+                    <span style="font-size:12px;color:#888">向平台充值地址转账，等待链上确认</span>
+                </form>
+                <form th:action="@{/withdrawals}" method="post" class="form-row">
+                    <label>提现</label>
+                    <input type="number" name="amount" step="0.01" min="0.01" placeholder="金额（USDT）" required>
+                    <button type="submit" class="btn-primary">申请提现</button>
+                    <span style="font-size:12px;color:#888">提交提现申请，平台立即冻结资金</span>
+                </form>
+            </div>
+        </div>
+
+        <!-- 一键处理 -->
+        <div class="card" style="text-align:center">
+            <form th:action="@{/internal/process}" method="post">
+                <button type="submit" class="btn-process"
+                        th:text="${pendingCount > 0 ? '⚙ 一键处理内部流程（' + pendingCount + ' 笔待处理）' : '⚙ 一键处理（当前无待处理事项）'}">⚙ 一键处理</button>
+            </form>
+            <div class="block-info" style="margin-top:10px">自动完成：确认数推进 → 充值入账 / 广播 → 确认 → 结算 / 取消解冻</div>
+        </div>
+
+        <!-- 我的记录 -->
+        <div class="card">
+            <h2>📋 我的记录</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>业务</th>
+                    <th>业务号</th>
+                    <th>金额</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="d : ${deposits}">
+                    <td>充值</td>
+                    <td style="font-family:Consolas,monospace;font-size:12px" th:text="${d.bizNo()}"></td>
+                    <td th:text="${d.amount()} + ' ' + ${d.currency()}"></td>
+                    <td>
+                        <span th:if="${d.status().name() == 'CONFIRMING'}" class="tag tag-pending"
+                              th:text="'⏳ 确认中 ' + ${d.confirmations()} + '/' + ${d.requiredConfirmations()}"></span>
+                        <span th:if="${d.status().name() == 'BOOKED'}" class="tag tag-done">✅ 已入账</span>
+                    </td>
+                    <td>-</td>
+                </tr>
+                <tr th:each="w : ${withdraws}">
+                    <td>提现</td>
+                    <td style="font-family:Consolas,monospace;font-size:12px" th:text="${w.bizNo}"></td>
+                    <td th:text="${w.amount} + ' ' + ${w.currency}"></td>
+                    <td>
+                        <span th:if="${w.status.name() == 'FROZEN'}" class="tag tag-pending">⏳ 已冻结</span>
+                        <span th:if="${w.status.name() == 'CANCEL_PENDING'}" class="tag tag-cancel">↩️ 取消处理中</span>
+                        <span th:if="${w.status.name() == 'SETTLED'}" class="tag tag-done">✅ 已结算</span>
+                        <span th:if="${w.status.name() == 'CANCELLED'}" class="tag tag-cancel">✅ 已取消</span>
+                    </td>
+                    <td>
+                        <form th:if="${w.status.name() == 'FROZEN' || w.status.name() == 'CANCEL_PENDING'}"
+                              th:action="@{/withdrawals/{bizNo}/cancel(bizNo=${w.bizNo})}" method="post" style="display:inline">
+                            <button type="submit" class="btn-mini btn-danger">取消提现</button>
+                        </form>
+                        <span th:if="${w.status.name() != 'FROZEN' && w.status.name() != 'CANCEL_PENDING'}">-</span>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(deposits) && #lists.isEmpty(withdraws)}">
+                    <td colspan="5" class="empty">暂无记录——发起一笔充值或提现开始体验</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </th:block>
+
+    <!-- 操作日志 -->
+    <div class="card">
+        <h2>📜 操作日志（业务身份 → 动作 → HTTP 端点 → OTX 响应）</h2>
+        <div class="log-list">
+            <div class="log-item" th:each="log : ${logs}">
+                <span class="actor" th:text="${log.actor}"></span>
+                <span th:text="${log.description}"></span>
+                <br>
+                <span class="endpoint" th:text="${'端点: ' + log.endpoint}"></span>
+                <span class="endpoint" th:text="${' · 响应: ' + log.response}"></span>
+            </div>
+            <div th:if="${#lists.isEmpty(logs)}" class="empty">暂无操作——你的每一次操作都会记录在这里</div>
+        </div>
+    </div>
+</main>
+<footer>mock-upstream 模拟用户中心 · 通过 HTTP 调用 OTX REST API（不依赖 OTX 内部实现）</footer>
+</body>
+</html>

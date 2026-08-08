@@ -4,15 +4,19 @@ server:
   # 模拟器自身端口（OTX 为 8003，本应用固定 8004 避免冲突）
   port: 8004
 
+spring:
+  thymeleaf:
+    # 页面模板 UTF-8 编码，避免中文乱码
+    encoding: UTF-8
+    cache: false
+
 otx:
   # OTX 服务基础地址：dev 环境默认 8003，可用环境变量 OTX_BASE_URL 覆盖
   base-url: http://localhost:8003
-  # 充值入账所需链上确认数：模拟链确认数达到该值后自动调用 POST /deposit
+  # 充值入账所需链上确认数：模拟链确认数达到该值后触发 POST /deposit
   required-confirmations: 12
-  # 模拟链区块推进间隔（毫秒）：每间隔推进一块，链上交易确认数 +1
+  # 模拟链区块推进间隔（毫秒）：一键处理时按该节奏推进区块，确认数 +1
   block-interval-ms: 2000
-  # 故事线步骤间延时（毫秒）：便于配合管理控制台逐步观察落账
-  step-delay-ms: 3000
 
 logging:
   level:

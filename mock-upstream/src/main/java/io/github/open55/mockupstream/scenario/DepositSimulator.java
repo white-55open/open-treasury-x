@@ -3,6 +3,9 @@ package io.github.open55.mockupstream.scenario;
 import io.github.open55.mockupstream.blockchain.BlockchainSimulator;
 import io.github.open55.mockupstream.blockchain.SimulatedTx;
 import io.github.open55.mockupstream.config.SimulatorProperties;
+import io.github.open55.mockupstream.state.DepositRecord;
+import io.github.open55.mockupstream.state.OperationLogEntry;
+import io.github.open55.mockupstream.state.RegistryStore;
 import io.github.open55.mockupstream.upstream.ApiResult;
 import io.github.open55.mockupstream.upstream.OtxClient;
 import lombok.extern.slf4j.Slf4j;
@@ -12,37 +15,23 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 充值故事编排器。
+ * 充值业务编排器（用户操作与内部处理分离）。
  * <p>
- * 完整演绎"链上充值事件 → 确认数增长 → 确认达标 → 通知 OTX 入账"：
- * 生成用户与业务号 → 在模拟链注册充值交易 → 注册确认达标回调（确认数达到
- * 阈值时自动调用 OTX POST /deposit）→ 等待回调完成 → 重复调用验证幂等
- * （同一 bizNo 不重复入账）→ 打印余额快照。
+ * 提供两个动作：
+ * <ul>
+ *   <li>{@link #initiateDeposit(Long, BigDecimal)}：用户操作——幂等开户并在
+ *       模拟链注册充值交易，生成确认中的充值记录（CONFIRMING）；</li>
+ *   <li>{@link #bookDeposit(DepositRecord)}：内部处理——推进确认数至达标后
+ *       调用 OTX 入账（POST /deposit），成功置为已入账（BOOKED），失败保持
+ *       CONFIRMING 供下次一键处理重试。</li>
+ * </ul>
+ * 每个动作均在操作日志记录业务身份、动作说明、HTTP 端点与 OTX 响应。
  */
 @Slf4j
 @Component
 public class DepositSimulator {
-
-    /**
-     * 用户标识自增偏移量（配合时间戳保证每轮演示 uid 唯一，避免跨轮数据污染）
-     */
-    private static final AtomicLong UID_OFFSET = new AtomicLong();
-
-    /**
-     * 生成演示用户标识：100000 + 时间戳派生值，每轮演示唯一（幂等开户可重复）。
-     *
-     * @return 用户标识
-     */
-    private long nextUid() {
-        return 100000L + (System.currentTimeMillis() % 900000L) + UID_OFFSET.incrementAndGet() % 1000L;
-    }
 
     /**
      * 模拟热钱包地址（充值资金来源方）
@@ -65,12 +54,7 @@ public class DepositSimulator {
     private static final int USDT_DECIMALS = 6;
 
     /**
-     * 单笔充值演示金额
-     */
-    private static final BigDecimal DEPOSIT_AMOUNT = new BigDecimal("100");
-
-    /**
-     * 模拟链（注册交易 + 确认达标回调）
+     * 模拟链（注册交易 + 确认数推进）
      */
     private final BlockchainSimulator blockchainSimulator;
 
@@ -80,129 +64,104 @@ public class DepositSimulator {
     private final OtxClient otxClient;
 
     /**
-     * 模拟器配置（确认阈值、区块间隔等）
+     * 内存状态注册表（充值记录 + 操作日志）
+     */
+    private final RegistryStore store;
+
+    /**
+     * 模拟器配置（确认阈值等）
      */
     private final SimulatorProperties properties;
 
     /**
-     * 构造充值故事编排器。
+     * 构造充值业务编排器。
      *
      * @param blockchainSimulator 模拟链
      * @param otxClient           OTX 客户端
+     * @param store               内存状态注册表
      * @param properties          模拟器配置
      */
     public DepositSimulator(BlockchainSimulator blockchainSimulator, OtxClient otxClient,
-                            SimulatorProperties properties) {
+                            RegistryStore store, SimulatorProperties properties) {
         this.blockchainSimulator = blockchainSimulator;
         this.otxClient = otxClient;
+        this.store = store;
         this.properties = properties;
     }
 
     /**
-     * 演绎充值故事线。
+     * 发起充值（用户操作）：幂等开户 → 注册模拟链交易 → 生成确认中记录。
      * <p>
-     * 步骤 1：创建用户账户（真实上游场景：用户注册时开户）；
-     * 步骤 2：生成充值请求（uid/bizNo/金额）并注册模拟链上交易；
-     * 步骤 3：等待链上确认数达标，由回调调用 POST /deposit 完成入账；
-     * 步骤 4：同一 bizNo 重复调用 POST /deposit 验证幂等（不重复入账）。
-     * 全程打印中文步骤日志与余额快照；任一环节失败仅统计失败步骤，不中断演示。
+     * 真实场景映射：用户向平台充值地址转账，链上打包即确认数 1/12，
+     * 尚未达标，等待「一键处理」推进确认后入账。
      *
-     * @return 充值故事产出（uid + 执行结果统计）
+     * @param uid    充值用户标识
+     * @param amount 充值金额（展示单位）
+     * @return 新建的充值记录（状态 CONFIRMING）
      */
-    public DepositOutcome runDepositStory() {
-        StoryTracker tracker = new StoryTracker("充值故事");
-        long uid = nextUid();
+    public DepositRecord initiateDeposit(Long uid, BigDecimal amount) {
+        // 真实上游场景：用户注册时已开户（幂等开户不重复创建）
+        otxClient.createAccount(uid);
+        BigInteger amountWei = amount.movePointRight(USDT_DECIMALS).toBigIntegerExact();
+        SimulatedTx tx = blockchainSimulator.registerTx(HOT_WALLET_ADDRESS, mockUserAddress(uid), amountWei);
         String bizNo = "MOCK-DEP-" + System.currentTimeMillis();
-        String toAddress = mockUserAddress(uid);
-        BigInteger amountWei = DEPOSIT_AMOUNT.movePointRight(USDT_DECIMALS).toBigIntegerExact();
-
-        log.info("==================== [充值故事] 开始 ====================");
-        // 步骤 1：创建用户账户（真实上游场景：用户注册时开户，重复开户幂等）
-        log.info("[充值故事] 步骤 1/4：创建用户账户（uid={}，真实场景中注册即开户）", uid);
-        tracker.track(otxClient.createAccount(uid).isSuccess());
-
-        // 步骤 2：生成充值请求并注册模拟链上交易
-        log.info("[充值故事] 步骤 2/4：生成充值请求并注册模拟链上交易");
-        log.info("[充值故事]   uid={}，bizNo={}，amount={} {}，chainId={}，充值地址={}",
-                uid, bizNo, DEPOSIT_AMOUNT, CURRENCY, CHAIN_ID, toAddress);
-        SimulatedTx tx = blockchainSimulator.registerTx(HOT_WALLET_ADDRESS, toAddress, amountWei);
-        tracker.track(true);
-
-        // 步骤 3：注册确认达标回调，等待模拟链确认数达到阈值后通知 OTX 入账
-        CountDownLatch confirmedLatch = new CountDownLatch(1);
-        AtomicBoolean depositCalled = new AtomicBoolean(false);
-        AtomicReference<Boolean> depositStepResult = new AtomicReference<>();
-        blockchainSimulator.onConfirmationsMet(simulatedTx -> {
-            // 防重复：同一交易确认达标回调只执行一次入账
-            if (!depositCalled.compareAndSet(false, true)) {
-                return;
-            }
-            log.info("[充值故事] 步骤 3/4：链上确认达标（{} 确认 ≥ {}），通知 OTX 充值入账",
-                    blockchainSimulator.confirmationsOf(simulatedTx.getTxHash()),
-                    properties.getRequiredConfirmations());
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("uid", uid);
-            body.put("amount", DEPOSIT_AMOUNT);
-            body.put("bizNo", bizNo);
-            body.put("currency", CURRENCY);
-            body.put("chainId", CHAIN_ID);
-            body.put("chainTxHash", simulatedTx.getTxHash());
-            depositStepResult.set(otxClient.deposit(body).isSuccess());
-            confirmedLatch.countDown();
-        });
-        log.info("[充值故事] 步骤 3/4：等待模拟链确认数达到 {}（区块每 {}ms 推进一块）...",
-                properties.getRequiredConfirmations(), properties.getBlockIntervalMs());
-        // 等待确认回调；超时保护：确认阈值 × 区块间隔 + 15 秒缓冲
-        long timeoutMs = (long) properties.getRequiredConfirmations() * properties.getBlockIntervalMs() + 15000;
-        try {
-            boolean callbackDone = confirmedLatch.await(timeoutMs, TimeUnit.MILLISECONDS);
-            Boolean stepResult = depositStepResult.get();
-            if (callbackDone && stepResult != null) {
-                tracker.track(stepResult);
-            } else {
-                // 回调未在超时内完成（OTX 不可达或确认阈值过高），计为失败步骤
-                log.warn("[充值故事] 等待确认回调超时（{}ms），请检查 OTX 是否可达", timeoutMs);
-                tracker.track(false);
-            }
-        } catch (InterruptedException e) {
-            // 主线程被中断：恢复中断标记并计为失败步骤
-            Thread.currentThread().interrupt();
-            tracker.track(false);
-        }
-
-        // 步骤 4：幂等验证——同一 bizNo 重复调用，OTX 应返回相同结果且不重复入账
-        log.info("[充值故事] 步骤 4/4：幂等验证——同一 bizNo 重复调用 POST /deposit（OTX 应返回相同结果、不重复入账）");
-        Map<String, Object> idempotentBody = new LinkedHashMap<>();
-        idempotentBody.put("uid", uid);
-        idempotentBody.put("amount", DEPOSIT_AMOUNT);
-        idempotentBody.put("bizNo", bizNo);
-        idempotentBody.put("currency", CURRENCY);
-        idempotentBody.put("chainId", CHAIN_ID);
-        idempotentBody.put("chainTxHash", tx.getTxHash());
-        tracker.track(otxClient.deposit(idempotentBody).isSuccess());
-
-        printAccountSnapshot("充值故事（入账后）", uid);
-        log.info("==================== [充值故事] 结束（成功 {}/{} 步） ====================",
-                tracker.result().successSteps(), tracker.result().totalSteps());
-        return new DepositOutcome(uid, tracker.result());
+        DepositRecord record = store.registerDeposit(bizNo, uid, amount, CURRENCY, tx.getTxHash());
+        store.appendLog(new OperationLogEntry(System.currentTimeMillis(),
+                "👤 用户 #" + uid + " 充值",
+                "向平台充值地址转账 " + amount + " " + CURRENCY + "，模拟链打包，等待确认",
+                "-", "-"));
+        log.info("[Deposit] initiated uid={}, bizNo={}, amount={} {}, tx={}", uid, bizNo, amount, CURRENCY, tx.getTxHash());
+        return record;
     }
 
     /**
-     * 打印账户余额快照（可用/冻结），展示 OTX 落账联动。
+     * 确认入账（内部处理）：推进确认数至达标后调用 OTX 入账。
+     * <p>
+     * 真实场景映射：链上确认达标，业务系统通知 OTX 入账。确认数已达标时
+     * 推进为空操作，直接重试入账（支持一键处理失败后的重试语义）。
      *
-     * @param scene 快照场景说明（如"充值入账后"）
-     * @param uid   用户标识
+     * @param record 充值记录（CONFIRMING）
+     * @return true 表示入账成功且记录置为 BOOKED；false 表示失败（保持 CONFIRMING）
      */
-    private void printAccountSnapshot(String scene, Long uid) {
-        ApiResult result = otxClient.getAccount(uid);
-        if (result.data() != null && result.data().isObject()) {
-            String available = result.data().path("availableBalance").asText("?");
-            String frozen = result.data().path("frozenBalance").asText("?");
-            log.info("[余额快照] {}：uid={} → 可用 {}，冻结 {}", scene, uid, available, frozen);
-        } else {
-            log.warn("[余额快照] {}：uid={} 查询失败（{}）", scene, uid,
-                    result.message().isBlank() ? "OTX 不可达" : result.message());
+    public boolean bookDeposit(DepositRecord record) {
+        long confirmations = blockchainSimulator.confirmationsOf(record.getTxHash());
+        long targetHeight = blockchainSimulator.currentHeight()
+                + (properties.getRequiredConfirmations() - confirmations);
+        blockchainSimulator.advanceTo(targetHeight);
+        long after = blockchainSimulator.confirmationsOf(record.getTxHash());
+        log.info("[Deposit] confirmations reached {}/{} for tx {}, calling OTX deposit",
+                after, properties.getRequiredConfirmations(), record.getTxHash());
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("uid", record.getUid());
+        body.put("amount", record.getAmount());
+        body.put("bizNo", record.getBizNo());
+        body.put("currency", record.getCurrency());
+        body.put("chainId", CHAIN_ID);
+        body.put("chainTxHash", record.getTxHash());
+        ApiResult result = otxClient.deposit(body);
+        store.appendLog(new OperationLogEntry(System.currentTimeMillis(),
+                "⚙ 内部处理",
+                "确认达标（" + after + "/" + properties.getRequiredConfirmations() + "），通知 OTX 充值入账",
+                "POST /deposit", summarize(result)));
+        if (result.isSuccess()) {
+            record.setStatus(DepositRecord.Status.BOOKED);
+            return true;
         }
+        return false;
+    }
+
+    /**
+     * 生成 OTX 响应摘要（业务码 + 消息，供操作日志展示）。
+     *
+     * @param result OTX 调用结果
+     * @return 摘要文本（如 "200 入账成功"）
+     */
+    private String summarize(ApiResult result) {
+        if (result.isSuccess()) {
+            return "成功（" + result.code() + " " + result.message() + "）";
+        }
+        return "失败（" + (result.message().isBlank() ? "OTX 不可达" : result.message()) + "）";
     }
 
     /**

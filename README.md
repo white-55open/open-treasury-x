@@ -135,9 +135,18 @@
 
 ---
 
-## 一键体验（模拟上游自动演绎）
+## 一键体验（模拟用户个人中心）
 
-仓库附带独立模块 [`mock-upstream/`](mock-upstream/)（**不加入主工程 Maven reactor**，仅通过 HTTP 调用 OTX REST API，模拟"链上事件源 + 业务系统调用方"）。启动后自动演绎完整业务故事线：**充值**（链上确认数增长达标 → `POST /deposit` 入账）→ **提现结算**（冻结 → 广播 → 模拟确认达标 → 确认结算）→ **提现取消**（冻结 → 取消解冻），全程中文日志输出步骤说明、调用端点、响应结果与余额快照。
+仓库附带独立模块 [`mock-upstream/`](mock-upstream/)（**不加入主工程 Maven reactor**，仅通过 HTTP 调用 OTX REST API，模拟"用户 + 链上事件源 + 业务系统调用方"）。它提供**模拟用户个人中心页面**（`:8004`），业务动作由你亲手触发，每个操作都映射到具体用户操作：
+
+| 你的操作（页面按钮） | 一键处理自动完成（内部流程） | OTX 接口 |
+|---|---|---|
+| 创建用户 | — | `POST /accounts/create/{uid}`（幂等开户） |
+| 发起充值 | 确认数推进至达标 → 入账 | 模拟链 → `POST /deposit` |
+| 申请提现 | 广播 → 确认 → 结算 | `POST /withdraw/freeze` → `broadcast` → `confirm-settle` |
+| 取消提现 | 解冻资金回可用余额 | `POST /withdraw/{bizNo}/cancel` |
+
+模拟链区块仅在点击「⚙ 一键处理」时按需推进（无定时推块），确认数演化过程折叠为页面操作日志；支持**多用户**创建与切换，各用户资产/记录独立；启动后**零自动调用**，全程节奏由你掌控。
 
 **启动顺序：**
 
@@ -148,14 +157,15 @@
    ```bash
    .\mvnw.cmd -pl otx-starter spring-boot:run
    ```
-3. **启动模拟上游**（端口 8004，自动演绎故事线，约 1 分钟跑完）：
+3. **启动模拟上游**（端口 8004，提供个人中心页面）：
    ```bash
    cd mock-upstream
    .\mvnw.cmd spring-boot:run
    ```
    > mock-upstream 为独立应用，自带 mvnw，不参与主工程构建；可用环境变量 `OTX_BASE_URL` 覆盖 OTX 地址。
-4. **打开管理控制台查看落账**：`http://localhost:8003/admin`（账户余额、资金流水、总账凭证与提现单据随故事线逐步联动）。
+4. **打开模拟用户中心**：`http://localhost:8004`——创建用户 → 发起充值/提现 → 点击「⚙ 一键处理」→ 页面操作日志展示每一步的业务身份、HTTP 端点与 OTX 响应。
+5. **打开管理控制台查看落账**：`http://localhost:8003/admin`（账户余额、资金流水、总账凭证与提现单据随你的操作逐步联动）。
 
-**dev 环境说明（广播依赖）：** OTX dev 的提现广播依赖本地 keystore 签名（`classpath:keystore/dev-withdrawer.json`）与链上 RPC（`ALCHEMY_KEY` 环境变量）。若两者未准备，充值故事不受影响（充值入账走 Web3j RPC 确认，RPC 不可用时 OTX 会 fail-safe 拒绝入账，模拟器日志会展示该路径）；提现广播将返回 `FAILED` 状态——模拟器会打印实际结果并继续演绎取消故事线，这本身也是"真实集成行为"的展示。准备 keystore 并注入 `OTX_KEYSTORE_PASSWORD` / `OTX_HOT_WALLET_ADDRESS` / `ALCHEMY_KEY` 后可演示完整广播成功路径。
+**dev 环境说明（广播依赖）：** OTX dev 的提现广播依赖本地 keystore 签名（`classpath:keystore/dev-withdrawer.json`）与链上 RPC（`ALCHEMY_KEY` 环境变量）。若两者未准备，充值不受影响（充值入账走 Web3j RPC 确认，RPC 不可用时 OTX 会 fail-safe 拒绝入账，操作日志会展示该路径）；提现广播将返回 `FAILED` 状态——编排器打印实际结果，提现结算会失败、取消路径仍可完成，这本身也是"真实集成行为"的展示。准备 keystore 并注入 `OTX_KEYSTORE_PASSWORD` / `OTX_HOT_WALLET_ADDRESS` / `ALCHEMY_KEY` 后可演示完整广播成功路径。
 
-**幂等验证：** 充值故事内置"同一 bizNo 重复调用 `POST /deposit`"步骤，OTX 幂等兜底保证不重复入账，日志可见重复调用返回相同结果。
+**幂等验证：** 同一 bizNo 重复触发（如一键处理失败后重试）时，OTX 幂等兜底保证不重复入账、不重复动账，操作日志可见幂等返回结果。

@@ -34,11 +34,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
+        <!-- Thymeleaf：服务端渲染模拟用户个人中心页面（与 OTX admin-console 技术栈一致） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
         <!-- Lombok：简化模拟器样板代码（@Slf4j/@Data 等） -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+        <!-- 测试 starter：冒烟测试与状态机编排单测（JUnit 5 + Mockito） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
